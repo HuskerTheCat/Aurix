@@ -110,6 +110,9 @@ VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
 # A placeholder until the custom "Hey Gab" model is trained. Swapping it is
 # a one-line change: this becomes the path to the trained .onnx file.
 WAKE_MODEL = "runtime/wakeword/hey_jarvis_v0.1.onnx"
+# What to call it on screen. Set by hand rather than worked out from the file
+# name, which is something like "hey_jarvis_v0.1". Change both together.
+WAKE_WORD_NAME = "Hey Jarvis"
 # How sure it has to be. Lower wakes more easily but also more often by
 # mistake; higher means repeating yourself.
 WAKE_THRESHOLD = 0.5

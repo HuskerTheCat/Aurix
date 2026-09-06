@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import audio, settings
+from . import audio, config, settings
 
 WIDTH = 300
 MARGIN = 12  # gap from the corner of the screen
@@ -30,6 +30,10 @@ QWidget#panel {
 }
 QLabel { color: #c9cfe0; font-family: 'Segoe UI'; font-size: 12px; }
 QLabel#title { color: #eef1f8; font-size: 14px; font-weight: 600; }
+QLabel#wakeword {
+    background: #1b2540; color: #a9c4ff; border: 1px solid #2f4272;
+    border-radius: 6px; padding: 7px 10px; font-size: 13px;
+}
 QComboBox {
     background: #1e2029; color: #e8ecf8; border: 1px solid #33374a;
     border-radius: 6px; padding: 5px 8px; font-size: 12px;
@@ -82,6 +86,12 @@ class Panel(QWidget):
         title = QLabel("Gab")
         title.setObjectName("title")
         layout.addWidget(title)
+
+        # The first thing anyone opening this wants is a reminder of what to say.
+        wake_word = QLabel(f'Say  "{config.WAKE_WORD_NAME}"')
+        wake_word.setObjectName("wakeword")
+        wake_word.setAlignment(Qt.AlignCenter)
+        layout.addWidget(wake_word)
 
         layout.addWidget(QLabel("Microphone"))
         self._microphone = QComboBox()
