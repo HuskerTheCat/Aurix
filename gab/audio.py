@@ -57,8 +57,11 @@ def calibrate() -> float:
     return _threshold
 
 
-def record_until_silence() -> np.ndarray:
+def record_until_silence(on_level=None) -> np.ndarray:
     """Record from the microphone until the speaker goes quiet.
+
+    on_level, if given, is called with the loudness of every block, so the
+    orb can breathe along with your voice.
 
     Returns mono float32 audio at config.SAMPLE_RATE.
     Raises NoSpeechDetected if nobody speaks in time.
@@ -86,7 +89,10 @@ def record_until_silence() -> np.ndarray:
         while elapsed < config.MAX_RECORDING_SEC:
             block, _overflow = stream.read(block_frames)
             elapsed += config.BLOCK_SECONDS
-            loud = _level(block) > threshold
+            level = _level(block)
+            if on_level is not None:
+                on_level(level)
+            loud = level > threshold
 
             if not speaking:
                 preroll.append(block)

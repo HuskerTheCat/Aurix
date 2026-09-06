@@ -8,3 +8,5 @@ models/
 build/
 dist/
 *.spec
+
+preview_*.png

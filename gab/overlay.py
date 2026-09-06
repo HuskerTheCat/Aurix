@@ -1,0 +1,209 @@
+"""The on-screen orb - the only thing Gab shows while it is working.
+
+A frameless, click-through window pinned to the top centre of the screen.
+It fades in when Gab wakes, breathes with your voice while you speak, and
+fades out when it is done.
+"""
+
+import math
+
+from PySide6.QtCore import QPointF, QPropertyAnimation, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QRadialGradient
+from PySide6.QtWidgets import QApplication, QWidget
+
+WIDTH = 400
+HEIGHT = 170
+ORB_CENTRE_Y = 62
+ORB_RADIUS = 34
+TOP_MARGIN = 48
+
+# Three colours per state. They drift over each other to make the orb move.
+PALETTES = {
+    "listening": ((80, 160, 255), (140, 110, 255), (70, 220, 215)),
+    "thinking": ((150, 110, 255), (230, 120, 200), (90, 150, 255)),
+    "done": ((90, 210, 160), (70, 190, 220), (120, 200, 190)),
+}
+
+
+class Overlay(QWidget):
+    """The orb. Every method here must be called on the Qt thread."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.Tool
+            | Qt.WindowTransparentForInput
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.resize(WIDTH, HEIGHT)
+        self._move_to_top_centre()
+
+        self._phase = 0.0
+        self._level = 0.0
+        self._eased_level = 0.0
+        self._caption = ""
+        self._state = "listening"
+
+        self._frames = QTimer(self)
+        self._frames.setInterval(16)  # about 60 a second
+        self._frames.timeout.connect(self._advance)
+
+        self._fade = QPropertyAnimation(self, b"windowOpacity", self)
+        self._fade.setDuration(200)
+
+        self._auto_hide = QTimer(self)
+        self._auto_hide.setSingleShot(True)
+        self._auto_hide.timeout.connect(self.dismiss)
+
+        self.setWindowOpacity(0.0)
+
+    # --- placement ---
+
+    def _move_to_top_centre(self) -> None:
+        screen = QApplication.primaryScreen().availableGeometry()
+        self.move(
+            screen.x() + (screen.width() - WIDTH) // 2,
+            screen.y() + TOP_MARGIN,
+        )
+
+    # --- what Gab tells it to do ---
+
+    def begin_listening(self) -> None:
+        self._state = "listening"
+        self._caption = "Listening"
+        self._level = 0.0
+        self._eased_level = 0.0
+        self._auto_hide.stop()
+        self._move_to_top_centre()
+        self.show()
+        self._frames.start()
+        self._fade_to(1.0)
+
+    def set_level(self, level: float) -> None:
+        self._level = level
+
+    def begin_thinking(self) -> None:
+        self._state = "thinking"
+        self._caption = "Thinking"
+        self._level = 0.0
+
+    def show_result(self, text: str, hold_ms: int = 2600) -> None:
+        self._state = "done"
+        self._caption = text
+        self._level = 0.0
+        self._auto_hide.start(hold_ms)
+
+    def dismiss(self) -> None:
+        self._auto_hide.stop()
+        self._fade_to(0.0, then_hide=True)
+
+    # --- animation ---
+
+    def _fade_to(self, target: float, then_hide: bool = False) -> None:
+        self._fade.stop()
+        try:
+            self._fade.finished.disconnect()
+        except RuntimeError:
+            pass
+        if then_hide:
+            self._fade.finished.connect(self._finish_hiding)
+        self._fade.setStartValue(self.windowOpacity())
+        self._fade.setEndValue(target)
+        self._fade.start()
+
+    def _finish_hiding(self) -> None:
+        self._frames.stop()
+        self.hide()
+
+    def _advance(self) -> None:
+        self._phase += 0.028
+        # ease toward the real level so the orb breathes instead of flickering
+        self._eased_level += (self._level - self._eased_level) * 0.22
+        self.update()
+
+    # --- drawing ---
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        self._paint_backdrop(painter)
+        self._paint_orb(painter)
+        self._paint_caption(painter)
+
+    def _paint_backdrop(self, painter: QPainter) -> None:
+        """A dark rounded panel, so the text stays readable on any wallpaper."""
+        path = QPainterPath()
+        path.addRoundedRect(self.rect().adjusted(12, 12, -12, -12), 28, 28)
+        painter.fillPath(path, QColor(16, 17, 24, 214))
+        painter.setPen(QColor(255, 255, 255, 26))
+        painter.drawPath(path)
+
+    def _paint_orb(self, painter: QPainter) -> None:
+        centre = QPointF(WIDTH / 2, ORB_CENTRE_Y)
+        loudness = min(self._eased_level * 9.0, 1.0)
+        # a slow breath when idle, a real swell when you speak
+        breath = 0.5 + 0.5 * math.sin(self._phase * 1.6)
+        radius = ORB_RADIUS * (0.78 + 0.10 * breath + 0.24 * loudness)
+        colours = PALETTES[self._state]
+
+        painter.setPen(Qt.NoPen)
+
+        halo = QColor(*colours[0])
+        glow = QRadialGradient(centre, radius * 2.5)
+        glow.setColorAt(0.0, QColor(halo.red(), halo.green(), halo.blue(), 80))
+        glow.setColorAt(0.45, QColor(halo.red(), halo.green(), halo.blue(), 34))
+        glow.setColorAt(1.0, QColor(halo.red(), halo.green(), halo.blue(), 0))
+        painter.setBrush(glow)
+        painter.drawEllipse(centre, radius * 2.5, radius * 2.5)
+
+        # A solid core first, so the orb reads as a sphere rather than a smudge.
+        core = QRadialGradient(centre, radius)
+        core.setColorAt(0.0, QColor(halo.red(), halo.green(), halo.blue(), 255))
+        core.setColorAt(0.70, QColor(halo.red(), halo.green(), halo.blue(), 232))
+        core.setColorAt(0.92, QColor(halo.red(), halo.green(), halo.blue(), 120))
+        core.setColorAt(1.0, QColor(halo.red(), halo.green(), halo.blue(), 0))
+        painter.setBrush(core)
+        painter.drawEllipse(centre, radius, radius)
+
+        # Three colours drifting across the sphere. The offsets are 120 degrees
+        # apart with the same radius, so they always cancel out and the orb
+        # never wanders off centre.
+        painter.setCompositionMode(QPainter.CompositionMode_Plus)
+        drift = radius * (0.16 + 0.10 * loudness) * (0.6 + 0.4 * breath)
+        for index, rgb in enumerate(colours):
+            angle = self._phase + index * (2 * math.pi / 3)
+            spot = QPointF(
+                centre.x() + math.cos(angle) * drift,
+                centre.y() + math.sin(angle) * drift,
+            )
+            colour = QColor(*rgb)
+            blob = QRadialGradient(spot, radius * 0.92)
+            blob.setColorAt(0.0, QColor(colour.red(), colour.green(), colour.blue(), 120))
+            blob.setColorAt(0.6, QColor(colour.red(), colour.green(), colour.blue(), 48))
+            blob.setColorAt(1.0, QColor(colour.red(), colour.green(), colour.blue(), 0))
+            painter.setBrush(blob)
+            painter.drawEllipse(spot, radius * 0.92, radius * 0.92)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
+        # A soft highlight up and to the left, so it looks lit from somewhere.
+        highlight = QRadialGradient(
+            QPointF(centre.x() - radius * 0.32, centre.y() - radius * 0.38), radius * 0.72
+        )
+        highlight.setColorAt(0.0, QColor(255, 255, 255, 150))
+        highlight.setColorAt(1.0, QColor(255, 255, 255, 0))
+        painter.setBrush(highlight)
+        painter.drawEllipse(centre, radius, radius)
+
+    def _paint_caption(self, painter: QPainter) -> None:
+        if not self._caption:
+            return
+        painter.setPen(QColor(232, 236, 248))
+        painter.setFont(QFont("Segoe UI", 11))
+        painter.drawText(
+            self.rect().adjusted(30, 104, -30, -16),
+            Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap,
+            self._caption,
+        )
