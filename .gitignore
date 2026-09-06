@@ -5,6 +5,9 @@ __pycache__/
 *.log
 takes/
 models/
+runtime/
+rel.json
+rels.json
 build/
 dist/
 *.spec

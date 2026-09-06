@@ -8,13 +8,22 @@ fades out when it is done.
 import math
 
 from PySide6.QtCore import QPointF, QPropertyAnimation, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QRadialGradient
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QFontMetrics,
+    QPainter,
+    QPainterPath,
+    QRadialGradient,
+)
 from PySide6.QtWidgets import QApplication, QWidget
 
 WIDTH = 400
 HEIGHT = 170
+MAX_HEIGHT = 420
 ORB_CENTRE_Y = 62
 ORB_RADIUS = 34
+CAPTION_TOP = 104
 TOP_MARGIN = 48
 
 # Three colours per state. They drift over each other to make the orb move.
@@ -85,16 +94,45 @@ class Overlay(QWidget):
     def set_level(self, level: float) -> None:
         self._level = level
 
-    def begin_thinking(self) -> None:
+    def begin_thinking(self, heard: str) -> None:
+        """Show what was heard, so a mishearing is obvious before the answer."""
         self._state = "thinking"
-        self._caption = "Thinking"
+        self._caption = heard or "Didn't catch that"
         self._level = 0.0
+        self._grow_to_fit()
 
     def show_result(self, text: str, hold_ms: int = 2600) -> None:
         self._state = "done"
         self._caption = text
         self._level = 0.0
+        self._grow_to_fit()
         self._auto_hide.start(hold_ms)
+
+    def begin_answer(self) -> None:
+        """Start an answer that arrives a piece at a time."""
+        self._state = "done"
+        self._caption = ""
+        self._level = 0.0
+        self._auto_hide.stop()
+
+    def append_answer(self, piece: str) -> None:
+        self._caption += piece
+        self._grow_to_fit()
+
+    def finish_answer(self, hold_ms: int = 5000) -> None:
+        self._auto_hide.start(hold_ms)
+
+    def _grow_to_fit(self) -> None:
+        """Let the panel get taller for a long answer, up to a sensible limit."""
+        metrics = QFontMetrics(QFont("Segoe UI", 11))
+        box = metrics.boundingRect(
+            0, 0, WIDTH - 60, 2000, Qt.TextWordWrap, self._caption or " "
+        )
+        wanted = CAPTION_TOP + max(box.height(), 20) + 24
+        height = max(HEIGHT, min(wanted, MAX_HEIGHT))
+        if height != self.height():
+            self.resize(WIDTH, height)
+            self._move_to_top_centre()
 
     def dismiss(self) -> None:
         self._auto_hide.stop()
@@ -203,7 +241,7 @@ class Overlay(QWidget):
         painter.setPen(QColor(232, 236, 248))
         painter.setFont(QFont("Segoe UI", 11))
         painter.drawText(
-            self.rect().adjusted(30, 104, -30, -16),
+            self.rect().adjusted(30, CAPTION_TOP, -30, -16),
             Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap,
             self._caption,
         )
