@@ -3,7 +3,7 @@
 # --- Microphone ---
 # Which microphone to listen to. None uses the Windows default device.
 # Otherwise any part of the device name, for example "HyperX Quadcast".
-MICROPHONE = None
+MICROPHONE = "HyperX Quadcast"
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
