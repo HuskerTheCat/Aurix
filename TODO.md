@@ -265,3 +265,30 @@ What this now requires, and none of it is free:
   us yesterday.
 - A slow connection makes install take a long while. The progress display is
   what stops that reading as a hang.
+
+---
+
+# 13. The installer's looks
+
+Seen during the first real install of 0.2.0. It works, but:
+
+- **No time remaining and no speed.** "179 MB of 2777 MB" says nothing about
+  whether that is five minutes or an hour, and on a slow connection that is
+  exactly when someone decides it has frozen and kills it. Fix this first;
+  it is the only item here that is not cosmetic. Track bytes against time in
+  `OnDownloadProgress` and show something like "about 4 minutes left,
+  11 MB/s".
+- **No identity.** The title bar is Inno's default red, the corner shows a
+  generic disc, and the app has no icon at all - `gab.spec` still has
+  `icon=None`, so Gab.exe is a blank Windows default. Draw the orb as an .ico
+  and use it for `SetupIconFile`, the wizard images and the exe.
+- **Two thirds of the page is empty.** Inno sizes it for a full wizard while
+  four lines are shown. The space could carry what is being installed and
+  where it is going.
+- **"Stop download" is the only button on screen**, which makes the one
+  action nobody wants the most clickable thing in the window.
+
+The ceiling is worth knowing: Inno's wizard is themeable but not deeply.
+Icons, images, colours and page content are reachable; the shape of it is
+not. Going further means a custom installer, which is a lot of work for
+something people do once. Do the time remaining and the icon, then stop.
