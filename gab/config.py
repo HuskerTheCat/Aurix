@@ -95,6 +95,13 @@ DECISION_PROMPT = (
     "Question: {question}"
 )
 
+# --- The voice ---
+# Placeholder. None of the Piper voices were especially liked; this one was
+# the least bad of the five tried. Being a high-quality model it takes about
+# a second to generate an answer's worth of speech, against a quarter of a
+# second for the medium ones - worth revisiting along with the voice itself.
+VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
+
 # --- Trigger ---
 # Temporary. The "Hey Gab" wake word replaces this once the audio path is proven.
 HOTKEY = "<ctrl>+<alt>+g"

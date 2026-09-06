@@ -13,7 +13,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from gab import audio, brain, config, speech, tray
+from gab import audio, brain, config, speech, tray, voice
 from gab.audio import NoSpeechDetected, record_until_silence
 from gab.overlay import Overlay
 
@@ -77,13 +77,18 @@ def _handle_request() -> None:
         )
         finished = time.perf_counter()
 
-        signals.answer_done.emit()
         print(f'  said:  "{reply}"')
+        voice.speak(reply)
+        spoken = time.perf_counter()
+
+        # Only now start the fade, so the orb stays up while it is talking.
+        signals.answer_done.emit()
         print(
             f"  listen {recorded - started:.1f}s"
             f"  |  transcribe {transcribed - recorded:.2f}s"
-            f"  |  first word {(first_word_at or finished) - transcribed:.2f}s"
-            f"  |  whole answer {finished - transcribed:.2f}s"
+            f"  |  answer {finished - transcribed:.2f}s"
+            f"  |  speaking {spoken - finished:.2f}s"
+            f"  |  question to first sound {finished - recorded:.2f}s"
         )
     except Exception as error:  # noqa: BLE001 - surface it on screen, keep running
         print(f"  failed: {error!r}")
@@ -115,6 +120,9 @@ def main() -> None:
     print("Loading the speech model...")
     speech.load()
 
+    print("Loading the voice...")
+    voice.load()
+
     print("Starting the language model...")
     model_started = time.perf_counter()
     brain.start()
@@ -129,6 +137,7 @@ def main() -> None:
     def quit_gab(icon) -> None:
         hotkeys.stop()
         icon.stop()
+        voice.stop()
         brain.stop()
         signals.quit.emit()
 

@@ -3,6 +3,7 @@ faster-whisper==1.2.1
 httpx==0.28.1
 numpy==2.5.2
 pillow==12.3.0
+piper-tts==1.8.0
 pynput==1.8.2
 PySide6-Essentials==6.11.2
 pystray==0.19.5
