@@ -2,6 +2,8 @@
 __pycache__/
 *.pyc
 *.wav
+*.log
+takes/
 models/
 build/
 dist/

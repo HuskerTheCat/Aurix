@@ -9,7 +9,7 @@ import time
 
 from pynput import keyboard
 
-from gab import config, speech, tray
+from gab import audio, config, speech, tray
 from gab.audio import NoSpeechDetected, record_until_silence
 
 _busy = threading.Lock()
@@ -51,6 +51,10 @@ def _on_hotkey() -> None:
 def main() -> None:
     print("Loading the speech model (the first run downloads it)...")
     speech.load()
+
+    print("Measuring the room, stay quiet for a moment...")
+    print(f"Speech threshold set to {audio.calibrate():.5f}")
+
     print(f"Ready. Press {config.HOTKEY} and speak.")
     print("Quit from the tray icon, or press Ctrl+C here.")
 
