@@ -41,7 +41,7 @@ for name, state, level, phase in STATES:
     painter.end()
 
     overlay.render(image, QPointF(0, 0).toPoint())
-    image.save(f"preview_{name}.png")
-    print(f"wrote preview_{name}.png")
+    image.save(f"docs/orb-{name}.png")
+    print(f"wrote docs/orb-{name}.png")
 
 print("done")

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tune_timing import TAKES_DIR, analyse
+from tools.tune_timing import TAKES_DIR, analyse
 
 names = sys.argv[1:] or [p.stem for p in sorted(Path(TAKES_DIR).glob("*.wav"))]
 

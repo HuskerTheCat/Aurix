@@ -12,5 +12,5 @@ settings.load()
 
 panel = Panel(on_pause=lambda _p: None, on_stop_speaking=lambda: None, on_quit=lambda: None)
 panel.adjustSize()
-panel.grab().save("preview_panel.png")
-print("wrote preview_panel.png", panel.width(), "x", panel.height())
+panel.grab().save("docs/panel.png")
+print("wrote docs/panel.png", panel.width(), "x", panel.height())
