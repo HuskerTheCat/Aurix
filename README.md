@@ -84,21 +84,10 @@ gab/            the app
   speech.py     speech to text
   voice.py      text to speech
   wake.py       always-on wake word listening
-tools/          development and diagnostic scripts, not part of the app
 main.py         starts everything
 gab.spec        how the app is packaged
 installer.iss   how the installer is built
 ```
-
-Run a tool from the project root, for example:
-
-```powershell
-.venv\Scripts\python -m tools.test_brain
-```
-
-## What is left
-
-See [TODO.md](TODO.md).
 
 ## Built with
 

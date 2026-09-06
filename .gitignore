@@ -7,7 +7,12 @@ runtime/
 dist/
 build/
 
-# Recordings and output from the tools in tools/
+# Recordings and scratch output
 takes/
 *.wav
 *.log
+
+# Kept locally, not published: the roadmap and the development scripts.
+# Neither is needed to download, build or use Gab.
+TODO.md
+tools/
