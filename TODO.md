@@ -231,3 +231,46 @@ Three things that would do more for how the page looks than any folder move:
 
 Note: the installer cannot be attached to a GitHub release. Their limit is
 2 GB per file and it is 3.2 GB - another argument for shrinking what ships.
+
+---
+
+# Decided: how it gets to people
+
+This settles the open question in item 9.
+
+**The rule is that the user does nothing but run the installer.** It is not
+that the machine never touches the internet. Those were being treated as the
+same requirement and they are not.
+
+So:
+
+- **The installer downloads the model itself, during installation.** Not on
+  first run - when the installer finishes, the app works. No prompt, no
+  choice, no second step.
+- **Everything comes from GitHub.** No Google Drive, no file services, no
+  sending links around. Someone finds the repo, downloads one file, runs it.
+- The model itself is fetched from wherever it lives, but the person never
+  sees that or has to care.
+
+What this changes:
+
+- The installer drops to roughly 500 MB, which **fits under GitHub's 2 GB
+  release limit** - the thing that made releases impossible yesterday.
+- Offline installation goes away. Accepted deliberately.
+- The model dropdown in item 9 stops being part of setup and becomes purely
+  an optional upgrade later, in the tray panel.
+
+What this now requires, and none of it is free:
+
+- Inno Setup 6 can download during installation without any add-on, so the
+  mechanism exists. It still needs a **progress display, a retry, and a
+  message a normal person can act on** when the network drops halfway.
+- **Verify what was downloaded.** A model file that arrives truncated will
+  not announce itself - it will fail later in some confusing way. Check the
+  size and hash before declaring success.
+- Decide what a failed download leaves behind. Best is an installed app that
+  says plainly what is missing and offers to try again, rather than an app
+  that silently does not start - which is exactly the failure mode that bit
+  us yesterday.
+- A slow connection makes install take a long while. The progress display is
+  what stops that reading as a hang.
