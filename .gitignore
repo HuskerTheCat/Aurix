@@ -10,6 +10,6 @@ rel.json
 rels.json
 build/
 dist/
-*.spec
+installer/
 
 preview_*.png

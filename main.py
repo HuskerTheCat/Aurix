@@ -13,9 +13,18 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from gab import audio, brain, config, speech, tray, voice, wake
+from gab import audio, brain, config, paths, speech, tray, voice, wake
 from gab.audio import NoSpeechDetected, record_until_silence
 from gab.overlay import Overlay
+
+
+def _start_logging() -> None:
+    """Packaged, there is no console, so send everything printed to a file."""
+    if not getattr(sys, "frozen", False):
+        return
+    stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)
+    sys.stdout = stream
+    sys.stderr = stream
 
 
 class Signals(QObject):
@@ -110,6 +119,8 @@ def _trigger() -> None:
 
 
 def main() -> None:
+    _start_logging()
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 

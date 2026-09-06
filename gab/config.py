@@ -24,7 +24,9 @@ MIN_SPEECH_LEVEL = 0.004  # floor, so a silent room does not trigger on nothing
 PREROLL_SEC = 0.3  # audio kept from before speech started, so no clipped first word
 
 # --- Speech recognition ---
-WHISPER_MODEL = "base.en"
+# A local folder, not a name: naming it makes faster-whisper fetch it from the
+# internet on first run, and Gab has to work the moment it is installed.
+WHISPER_MODEL = "runtime/whisper"
 WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE_TYPE = "int8"
 # Whisper invents words when it hears silence. Anything it is this unsure
@@ -105,11 +107,15 @@ VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
 # --- The wake word ---
 # A placeholder until the custom "Hey Gab" model is trained. Swapping it is
 # a one-line change: this becomes the path to the trained .onnx file.
-WAKE_MODEL = "hey_jarvis"
+WAKE_MODEL = "runtime/wakeword/hey_jarvis_v0.1.onnx"
 # How sure it has to be. Lower wakes more easily but also more often by
 # mistake; higher means repeating yourself.
 WAKE_THRESHOLD = 0.5
 WAKE_CHUNK = 1280  # 80ms of audio, what the model expects at a time
+# The two shared models every wake word is built on. Kept beside the app so
+# nothing has to be fetched at runtime.
+WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
+WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"
 
 # --- Trigger ---
 # Kept alongside the wake word: useful when a microphone is busy, and the

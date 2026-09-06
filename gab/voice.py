@@ -10,7 +10,7 @@ import numpy as np
 import sounddevice as sd
 from piper import PiperVoice
 
-from . import config
+from . import config, paths
 
 _voice: PiperVoice | None = None
 
@@ -18,7 +18,7 @@ _voice: PiperVoice | None = None
 def load() -> None:
     """Load the voice up front, so the first answer is not slow."""
     global _voice
-    _voice = PiperVoice.load(config.VOICE_MODEL)
+    _voice = PiperVoice.load(paths.resolve(config.VOICE_MODEL))
 
 
 def speak(text: str) -> None:

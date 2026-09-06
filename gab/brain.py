@@ -15,11 +15,10 @@ import json
 import re
 import subprocess
 import time
-from pathlib import Path
 
 import httpx
 
-from . import config, search
+from . import config, paths, search
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -40,8 +39,8 @@ def start() -> None:
     """Launch the model server and wait until it is ready to answer."""
     global _process, _client
 
-    server = Path(config.LLAMA_SERVER).resolve()
-    model = Path(config.MODEL_PATH).resolve()
+    server = paths.resolve(config.LLAMA_SERVER)
+    model = paths.resolve(config.MODEL_PATH)
     if not server.exists():
         raise FileNotFoundError(f"llama server missing: {server}")
     if not model.exists():

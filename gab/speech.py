@@ -3,7 +3,7 @@
 import numpy as np
 from faster_whisper import WhisperModel
 
-from . import config
+from . import config, paths
 
 _model: WhisperModel | None = None
 
@@ -12,7 +12,7 @@ def load() -> None:
     """Load the model up front, so the first question is not slow."""
     global _model
     _model = WhisperModel(
-        config.WHISPER_MODEL,
+        str(paths.resolve(config.WHISPER_MODEL)),
         device=config.WHISPER_DEVICE,
         compute_type=config.WHISPER_COMPUTE_TYPE,
     )

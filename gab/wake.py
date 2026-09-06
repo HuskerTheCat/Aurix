@@ -15,7 +15,7 @@ import numpy as np
 import sounddevice as sd
 from openwakeword.model import Model
 
-from . import config
+from . import config, paths
 from .audio import find_microphone
 
 
@@ -25,7 +25,9 @@ class Listener:
     def __init__(self, on_wake) -> None:
         self._on_wake = on_wake
         self._model = Model(
-            wakeword_models=[config.WAKE_MODEL],
+            wakeword_models=[str(paths.resolve(config.WAKE_MODEL))],
+            melspec_model_path=str(paths.resolve(config.WAKE_MELSPEC)),
+            embedding_model_path=str(paths.resolve(config.WAKE_EMBEDDING)),
             inference_framework="onnx",
         )
         self._name = list(self._model.models)[0]
