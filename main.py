@@ -13,7 +13,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from gab import audio, brain, config, speech, tray, voice
+from gab import audio, brain, config, speech, tray, voice, wake
 from gab.audio import NoSpeechDetected, record_until_silence
 from gab.overlay import Overlay
 
@@ -34,6 +34,7 @@ class Signals(QObject):
 
 signals = Signals()
 _busy = threading.Lock()
+_listener: wake.Listener | None = None
 
 
 def _handle_request() -> None:
@@ -95,10 +96,16 @@ def _handle_request() -> None:
         signals.failed.emit("Something went wrong")
     finally:
         _busy.release()
+        # Listen for the wake word again, but only now - listening any earlier
+        # means Gab hears its own voice and wakes itself up.
+        if _listener is not None:
+            _listener.resume()
 
 
-def _on_hotkey() -> None:
-    """Run the work off the key listener thread so hotkeys stay responsive."""
+def _trigger() -> None:
+    """Start a request, off whichever thread noticed - a key or the wake word."""
+    if _listener is not None:
+        _listener.pause()
     threading.Thread(target=_handle_request, daemon=True).start()
 
 
@@ -131,12 +138,18 @@ def main() -> None:
     print("Measuring the room, stay quiet for a moment...")
     print(f"Speech threshold set to {audio.calibrate():.5f}")
 
-    hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _on_hotkey})
+    global _listener
+    _listener = wake.Listener(on_wake=_trigger)
+    _listener.start()
+    print(f'Listening for the wake word "{_listener.wake_word}".')
+
+    hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _trigger})
     hotkeys.start()
 
     def quit_gab(icon) -> None:
         hotkeys.stop()
         icon.stop()
+        _listener.stop()
         voice.stop()
         brain.stop()
         signals.quit.emit()
@@ -144,7 +157,7 @@ def main() -> None:
     icon = tray.create(on_quit=quit_gab)
     threading.Thread(target=icon.run, daemon=True).start()
 
-    print(f"Ready. Press {config.HOTKEY} and ask something.")
+    print(f'Ready. Say the wake word, or press {config.HOTKEY}.')
     print("Quit from the tray icon.")
 
     try:

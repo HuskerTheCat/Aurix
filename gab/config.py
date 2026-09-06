@@ -102,6 +102,16 @@ DECISION_PROMPT = (
 # second for the medium ones - worth revisiting along with the voice itself.
 VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
 
+# --- The wake word ---
+# A placeholder until the custom "Hey Gab" model is trained. Swapping it is
+# a one-line change: this becomes the path to the trained .onnx file.
+WAKE_MODEL = "hey_jarvis"
+# How sure it has to be. Lower wakes more easily but also more often by
+# mistake; higher means repeating yourself.
+WAKE_THRESHOLD = 0.5
+WAKE_CHUNK = 1280  # 80ms of audio, what the model expects at a time
+
 # --- Trigger ---
-# Temporary. The "Hey Gab" wake word replaces this once the audio path is proven.
+# Kept alongside the wake word: useful when a microphone is busy, and the
+# only way in if the wake word mishears you.
 HOTKEY = "<ctrl>+<alt>+g"
