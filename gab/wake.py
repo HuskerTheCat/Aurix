@@ -15,7 +15,7 @@ import numpy as np
 import sounddevice as sd
 from openwakeword.model import Model
 
-from . import config, paths
+from . import config, paths, settings
 from .audio import find_microphone
 
 
@@ -85,7 +85,7 @@ class Listener:
                 score = scores[self._name]
                 self._peak = max(self._peak, score)
 
-                if score >= config.WAKE_THRESHOLD:
+                if score >= settings.get("wake_threshold"):
                     self.pause()
                     self._on_wake()
                     return

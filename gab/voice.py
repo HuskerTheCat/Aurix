@@ -10,7 +10,7 @@ import numpy as np
 import sounddevice as sd
 from piper import PiperVoice
 
-from . import config, paths
+from . import config, paths, settings
 
 _voice: PiperVoice | None = None
 
@@ -35,6 +35,11 @@ def speak(text: str) -> None:
     audio = np.concatenate(
         [np.frombuffer(chunk.audio_int16_bytes, dtype=np.int16) for chunk in chunks]
     )
+
+    volume = settings.get("volume")
+    if volume < 1.0:
+        audio = (audio * volume).astype(np.int16)
+
     sd.play(audio, chunks[0].sample_rate)
     sd.wait()
 

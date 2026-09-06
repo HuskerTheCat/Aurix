@@ -5,7 +5,7 @@ from collections import deque
 import numpy as np
 import sounddevice as sd
 
-from . import config
+from . import config, settings
 
 
 class NoSpeechDetected(Exception):
@@ -20,16 +20,33 @@ def _level(block: np.ndarray) -> float:
     return float(np.sqrt(np.mean(np.square(block))))
 
 
+def microphones() -> list[tuple[int, str]]:
+    """Every input device, as (index, name), for the picker in the panel."""
+    return [
+        (index, device["name"])
+        for index, device in enumerate(sd.query_devices())
+        if device["max_input_channels"] > 0
+    ]
+
+
 def find_microphone() -> int | None:
-    """Resolve config.MICROPHONE to a device index. None means system default."""
-    if config.MICROPHONE is None:
+    """Which device to record from. None means whatever Windows is using.
+
+    A chosen microphone is a preference, not a requirement. If it is not
+    there - unplugged, or the settings came from another machine - Gab uses
+    the system default and says so, because refusing to start over a missing
+    USB microphone is worse than quietly using another one.
+    """
+    wanted = settings.get("microphone")
+    if wanted is None:
         return None
 
-    wanted = config.MICROPHONE.lower()
-    for index, device in enumerate(sd.query_devices()):
-        if device["max_input_channels"] > 0 and wanted in device["name"].lower():
+    for index, name in microphones():
+        if wanted.lower() in name.lower():
             return index
-    raise RuntimeError(f"no microphone matching {config.MICROPHONE!r}")
+
+    print(f"  microphone {wanted!r} not found, using the system default")
+    return None
 
 
 def _measure_room(stream, block_frames: int) -> float:

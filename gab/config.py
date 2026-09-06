@@ -1,9 +1,11 @@
 """Every tunable setting for Gab lives here."""
 
 # --- Microphone ---
-# Which microphone to listen to. None uses the Windows default device.
-# Otherwise any part of the device name, for example "HyperX Quadcast".
-MICROPHONE = "HyperX Quadcast"
+# The default microphone: None means whatever Windows is set to. This is only
+# the default - the real value lives in settings.json and is chosen from the
+# tray panel. It must never be a specific device here, or the app would only
+# start on a machine that happens to own that microphone.
+MICROPHONE = None
 
 SAMPLE_RATE = 16000
 CHANNELS = 1

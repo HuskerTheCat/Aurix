@@ -13,9 +13,10 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from gab import audio, brain, config, paths, speech, tray, voice, wake
+from gab import audio, brain, config, paths, settings, speech, tray, voice, wake
 from gab.audio import NoSpeechDetected, record_until_silence
 from gab.overlay import Overlay
+from gab.panel import Panel
 
 
 def _start_logging() -> None:
@@ -38,12 +39,14 @@ class Signals(QObject):
     answer_piece = Signal(str)
     answer_done = Signal()
     failed = Signal(str)
+    open_panel = Signal()
     quit = Signal()
 
 
 signals = Signals()
 _busy = threading.Lock()
 _listener: wake.Listener | None = None
+_paused_by_user = False  # the panel's pause switch, kept apart from the automatic one
 
 
 def _handle_request() -> None:
@@ -106,8 +109,9 @@ def _handle_request() -> None:
     finally:
         _busy.release()
         # Listen for the wake word again, but only now - listening any earlier
-        # means Gab hears its own voice and wakes itself up.
-        if _listener is not None:
+        # means Gab hears its own voice and wakes itself up. Unless the person
+        # switched listening off while Gab was busy, which wins.
+        if _listener is not None and not _paused_by_user:
             _listener.resume()
 
 
@@ -120,6 +124,7 @@ def _trigger() -> None:
 
 def main() -> None:
     _start_logging()
+    settings.load()
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -157,15 +162,31 @@ def main() -> None:
     hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _trigger})
     hotkeys.start()
 
-    def quit_gab(icon) -> None:
+    def set_paused(paused: bool) -> None:
+        """The panel's pause switch. Separate from Gab pausing itself."""
+        global _paused_by_user
+        _paused_by_user = paused
+        if _listener is None:
+            return
+        _listener.pause() if paused else _listener.resume()
+
+    def quit_gab(icon=None) -> None:
         hotkeys.stop()
-        icon.stop()
+        if icon is not None:
+            icon.stop()
         _listener.stop()
         voice.stop()
         brain.stop()
         signals.quit.emit()
 
-    icon = tray.create(on_quit=quit_gab)
+    panel = Panel(
+        on_pause=set_paused,
+        on_stop_speaking=voice.stop,
+        on_quit=lambda: quit_gab(icon),
+    )
+    signals.open_panel.connect(panel.toggle)
+
+    icon = tray.create(on_open=signals.open_panel.emit, on_quit=quit_gab)
     threading.Thread(target=icon.run, daemon=True).start()
 
     print(f'Ready. Say the wake word, or press {config.HOTKEY}.')

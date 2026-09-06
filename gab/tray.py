@@ -14,7 +14,14 @@ def _icon_image() -> Image.Image:
     return image
 
 
-def create(on_quit) -> pystray.Icon:
-    """Build the tray icon. on_quit is called with the icon when Quit is picked."""
-    menu = pystray.Menu(pystray.MenuItem("Quit Gab", lambda icon, _item: on_quit(icon)))
+def create(on_open, on_quit) -> pystray.Icon:
+    """Build the tray icon.
+
+    on_open runs on a left click, which is what opens the panel. on_quit is
+    called with the icon when Quit is picked.
+    """
+    menu = pystray.Menu(
+        pystray.MenuItem("Open Gab", lambda _icon, _item: on_open(), default=True),
+        pystray.MenuItem("Quit Gab", lambda icon, _item: on_quit(icon)),
+    )
     return pystray.Icon("gab", _icon_image(), "Gab", menu)
