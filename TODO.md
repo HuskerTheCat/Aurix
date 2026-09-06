@@ -3,28 +3,19 @@
 Written at the end of the first build session. Everything below the first
 section is working, tested and pushed.
 
-## STOP - do not share the installer yet
+## DONE - the microphone blocker and the settings gap
 
-`gab/config.py` has `MICROPHONE = "HyperX Quadcast"`, and `audio.find_microphone()`
-raises when nothing matches that name. On any other machine Gab dies during
-startup, and because the packaged app has no console the person sees nothing
-at all - no window, no error. The only trace is `%LOCALAPPDATA%\Gab\gab.log`.
+Both fixed in 0.2.0.
 
-A zip was built at `D:\Gab-for-testing.zip` (3.12 GB, installer plus a note for
-a tester). **It has this bug in it. Do not send it.**
+`settings.json` now lives beside the log in `%LOCALAPPDATA%\Gab\`, holding the
+microphone, the volume and the wake word sensitivity. `config.py` keeps the
+defaults; the tray panel writes the file. The microphone defaults to the
+system default and a chosen one is treated as a preference - if it is missing,
+Gab says so in the log and uses the default rather than refusing to start.
 
-The real fix is the next item, not a patch to the default.
-
-## 1. Settings that survive installation
-
-Everything configurable lives in `config.py`, which PyInstaller freezes into
-the exe. After installing, nobody can change the microphone, the model, the
-wake word sensitivity or anything else.
-
-Needs a settings file written on first run - somewhere writable such as
-`%LOCALAPPDATA%\Gab\settings.toml` - that `config.py` reads and falls back to
-sensible defaults for. Microphone should default to the system default device,
-with a name only as an optional preference.
+**The old `D:\Gab-for-testing.zip` still contains the broken 0.1.0 build.
+Delete it.** The 0.2.0 installer replaces it, and is small enough to put on
+GitHub instead of sending as a file.
 
 ## 2. Doing things, not just answering
 
