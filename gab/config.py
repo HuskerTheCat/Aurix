@@ -11,9 +11,10 @@ BLOCK_SECONDS = 0.03  # how often we check the microphone level
 
 # --- Deciding when you have finished speaking ---
 # Quiet time that ends a recording. Measured against real speech: a natural
-# mid-sentence pause ran just under 0.8s, so anything below that cuts you off
-# mid-thought. 1.0s leaves headroom.
-SILENCE_HANGOVER_SEC = 1.0
+# mid-sentence pause ran just under 0.8s. Set well above that, because people
+# who think mid-sentence pause for longer, and being cut off is far more
+# annoying than waiting. Costs half a second of dead air; worth it.
+SILENCE_HANGOVER_SEC = 1.5
 MAX_RECORDING_SEC = 15.0  # hard stop, so it can never run away
 SPEECH_START_TIMEOUT_SEC = 5.0  # give up if nobody says anything
 NOISE_CALIBRATION_SEC = 0.4  # listen to the room first
