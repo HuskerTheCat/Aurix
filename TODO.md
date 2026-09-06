@@ -109,3 +109,125 @@ dollars a year, so not a hobby-project decision.
   gets 21 out of 21.
 - The Vulkan build of llama.cpp is 35 MB against 254 MB plus a 391 MB runtime
   for the CUDA one, and works on AMD, Intel and NVIDIA alike.
+
+---
+
+# Added after the first session
+
+Ideas raised the same night, listed roughly in the order they would be built.
+Most of them turn out to be one piece of work wearing several hats: the
+settings file, the model picker and the tray panel all need the same thing -
+somewhere outside the frozen exe to keep a choice, and somewhere to make it.
+
+## 8. The tray panel
+
+Clicking the tray icon opens a small panel. Asked for a volume slider, which
+does not exist today at all - `voice.speak()` plays at whatever the system
+volume is.
+
+Worth putting in the same panel:
+
+- **Microphone picker.** This is where the blocker at the top of this file
+  gets properly fixed rather than patched.
+- **Pause listening.** A toggle for calls, films, company. In an always-on
+  app this ends up the most-used control, and today the only way to stop it
+  is quitting.
+- **Stop talking.** Cuts off an answer part way. The cheap version of the
+  interrupt problem in section 5; real barge-in is much harder.
+- **Wake word sensitivity.** One slider. Too many or too few triggers is the
+  usual complaint, and the right number differs by room and microphone.
+- The model picker from section 9.
+
+Deliberately not included: conversation history. It would turn a quick panel
+into an app, and it means storing what people said, which cuts against the
+nothing-is-kept story.
+
+## 9. Choosing and downloading models
+
+A dropdown to pick a language model, with suggestions for low, medium and
+high end machines plus a longer list to choose from.
+
+Open question, worth deciding on purpose: **how much ships in the installer.**
+The original rule was one installer, no downloads, no sign-ins. Three options:
+
+- Bundle nothing, pick during setup. Installer drops to roughly 500 MB and
+  becomes something you can actually send. But the download stops being
+  optional, offline install disappears, and first run becomes the riskiest
+  moment - a stalled download instead of a working assistant. Needs progress,
+  resume and retry.
+- Bundle everything, as now. 3.2 GB, painful to share.
+- Bundle the smallest usable model and offer upgrades. Around 1-1.5 GB, still
+  works the moment it installs, keeps the original promise.
+
+The middle option looks best, but the case for the first got stronger the
+moment this had to be handed to somebody.
+
+## 10. The detail view
+
+The panel expands to show what is actually going on.
+
+- Model, voice, wake word and microphone in use.
+- **Whether the graphics card is really being used, and which one.**
+  llama.cpp quietly runs on the processor if Vulkan does not take, and there
+  is currently no way to tell. "Why is it slow on my machine" is the question
+  that will come up most, and this answers it at a glance.
+- Timings from the last question. Already printed to the log; showing them
+  lets the person feeling the slowness see where it went.
+- What it last looked up, if anything. The privacy claim is that only a
+  search query ever leaves the machine - showing the query is what makes that
+  checkable instead of a promise.
+- Version number, and a button to open the log folder.
+
+The point of all this is bug reports. Yesterday a tester would have seen
+nothing at all - no window, no error, no hint a log existed. One screenshot
+of this panel gives the model, the microphone, the graphics card and the
+timings.
+
+## 11. System usage, and what to do about it
+
+Show what the model is costing, so people can judge whether to size up or
+down:
+
+- Video memory used against available. The real constraint - a model either
+  fits on the card or spills to system memory and crawls.
+- Words per second. The best single signal: faster than speech means there is
+  headroom.
+- Memory and processor use, idle and while answering. The idle figure matters
+  too - people want to know the cost of just listening.
+
+Design note: raw numbers will not answer the question for most people.
+"3.1 GB of 16 GB, 127 tokens a second" still leaves them guessing. Give a
+verdict - *your card has room and answers arrive faster than speech, so a
+larger model would run fine* - with the numbers underneath for anyone who
+wants them.
+
+Get the memory figures from llama.cpp itself rather than from Windows. It
+reports what it loaded and where at startup, which works the same on AMD,
+Intel and NVIDIA; asking the operating system differs per vendor.
+
+## 12. Tidy the repository
+
+The root is currently the app next to a heap of loose dev scripts.
+
+Proposed shape:
+
+- `gab/` - the app, already fine
+- `tools/` - tune_timing, analyse_takes, compare_voices, debug_brain,
+  render_preview, check_setup, the test scripts
+- `packaging/` - gab.spec, installer.iss, make_share_zip.ps1
+- `docs/` - this file, and the preview images out of the root
+
+Three things that would do more for how the page looks than any folder move:
+
+- **A screenshot or short GIF of the orb in the README.** Biggest single
+  difference between a project and a folder. `render_preview.py` already
+  makes the images.
+- **A LICENSE file.** Not only cosmetic: openWakeWord and Piper are
+  Apache-2.0 and llama.cpp is MIT, all fine, but **Qwen's model licence is
+  worth actually reading** before the repo goes public or the installer goes
+  to anyone beyond a friend.
+- A description and topics on the repo, and making it public if people are
+  meant to find it.
+
+Note: the installer cannot be attached to a GitHub release. Their limit is
+2 GB per file and it is 3.2 GB - another argument for shrinking what ships.
