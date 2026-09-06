@@ -30,6 +30,7 @@ TOP_MARGIN = 48
 PALETTES = {
     "listening": ((80, 160, 255), (140, 110, 255), (70, 220, 215)),
     "thinking": ((150, 110, 255), (230, 120, 200), (90, 150, 255)),
+    "searching": ((255, 175, 70), (255, 210, 120), (240, 140, 90)),
     "done": ((90, 210, 160), (70, 190, 220), (120, 200, 190)),
 }
 
@@ -107,6 +108,13 @@ class Overlay(QWidget):
         self._level = 0.0
         self._grow_to_fit()
         self._auto_hide.start(hold_ms)
+
+    def begin_searching(self, what: str) -> None:
+        """Say what is being looked up, so a pause has a visible reason."""
+        self._state = "searching"
+        self._caption = f"Looking up {what}"
+        self._level = 0.0
+        self._grow_to_fit()
 
     def begin_answer(self) -> None:
         """Start an answer that arrives a piece at a time."""

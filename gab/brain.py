@@ -1,13 +1,16 @@
 """The local language model that answers questions.
 
 Runs llama.cpp's server as a child process and talks to it over HTTP on this
-machine only. Nothing leaves the computer.
+machine only. The model itself never reaches the internet; the one thing that
+leaves the computer is a search query, and only when a question needs one.
 
-Answers stream back a word at a time, which matters: the voice can start
-speaking the first sentence while the rest is still being written, instead of
-everyone waiting for the whole thing.
+Answering happens in two steps. First a tiny, constrained question: does this
+need a web search, and if so what for. Then the answer itself, given whatever
+was found. Splitting it that way is what makes the searching reliable - see
+the note in config.SEARCH_DECISION_PROMPT.
 """
 
+import datetime
 import json
 import re
 import subprocess
@@ -16,17 +19,21 @@ from pathlib import Path
 
 import httpx
 
-from . import config
+from . import config, search
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
 
-# Some models narrate their reasoning first. Nobody wants that read aloud.
+# Some models narrate their reasoning. Nobody wants that read aloud.
 _THINKING = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
 
 def _base_url() -> str:
     return f"http://127.0.0.1:{config.LLAMA_PORT}"
+
+
+def _today() -> str:
+    return datetime.datetime.now().strftime("%A, %d %B %Y")
 
 
 def start() -> None:
@@ -77,18 +84,12 @@ def _wait_until_ready() -> None:
     raise TimeoutError(f"model server not ready after {config.LLAMA_START_TIMEOUT_SEC}s")
 
 
-def answer(question: str, on_token=None) -> str:
-    """Answer a question. on_token, if given, is called with each new piece."""
-    if _client is None:
-        raise RuntimeError("brain.start() must be called before answer()")
-
+def _ask(messages: list, max_tokens: int, temperature: float, on_token=None) -> str:
+    """Send an exchange to the model and stream the reply back."""
     request = {
-        "messages": [
-            {"role": "system", "content": config.SYSTEM_PROMPT},
-            {"role": "user", "content": question},
-        ],
-        "max_tokens": config.MAX_ANSWER_TOKENS,
-        "temperature": config.TEMPERATURE,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
         "stream": True,
     }
 
@@ -101,8 +102,7 @@ def answer(question: str, on_token=None) -> str:
             payload = line[6:]
             if payload == "[DONE]":
                 break
-            delta = json.loads(payload)["choices"][0].get("delta", {})
-            piece = delta.get("content")
+            piece = (json.loads(payload)["choices"][0].get("delta") or {}).get("content")
             if not piece:
                 continue
             pieces.append(piece)
@@ -110,6 +110,57 @@ def answer(question: str, on_token=None) -> str:
                 on_token(piece)
 
     return _THINKING.sub("", "".join(pieces)).strip()
+
+
+def _route(question: str) -> tuple[str, str]:
+    """Decide how to answer. Returns ('direct'|'search'|'weather', argument)."""
+    prompt = config.DECISION_PROMPT.format(today=_today(), question=question)
+    verdict = _ask(
+        [{"role": "user", "content": prompt}],
+        max_tokens=config.SEARCH_DECISION_TOKENS,
+        temperature=0.0,
+    )
+
+    line = verdict.strip().splitlines()[0].strip() if verdict.strip() else ""
+    upper = line.upper()
+
+    if upper.startswith("WEATHER:"):
+        return "weather", line[len("WEATHER:") :].strip().strip('"')
+    if upper.startswith("SEARCH:"):
+        return "search", line[len("SEARCH:") :].strip().strip('"') or question
+    return "direct", ""
+
+
+def answer(question: str, on_token=None, on_searching=None) -> str:
+    """Answer a question, looking it up first when the answer depends on it.
+
+    on_token is called with each new piece of the spoken answer.
+    on_searching is called with what is being looked up, so the orb can say so.
+    """
+    if _client is None:
+        raise RuntimeError("brain.start() must be called before answer()")
+
+    route, argument = _route(question)
+
+    content = question
+    if route == "weather":
+        if on_searching is not None:
+            on_searching(f"weather in {argument}")
+        content = f"{search.weather(argument)}\n\nQuestion: {question}"
+    elif route == "search":
+        if on_searching is not None:
+            on_searching(argument)
+        content = f"Search results:\n\n{search.web_search(argument)}\n\nQuestion: {question}"
+
+    return _ask(
+        [
+            {"role": "system", "content": config.SYSTEM_PROMPT.format(today=_today())},
+            {"role": "user", "content": content},
+        ],
+        max_tokens=config.MAX_ANSWER_TOKENS,
+        temperature=config.TEMPERATURE,
+        on_token=on_token,
+    )
 
 
 def stop() -> None:

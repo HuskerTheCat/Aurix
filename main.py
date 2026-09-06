@@ -24,6 +24,7 @@ class Signals(QObject):
     listening = Signal()
     level = Signal(float)
     thinking = Signal(str)
+    searching = Signal(str)
     answer_started = Signal()
     answer_piece = Signal(str)
     answer_done = Signal()
@@ -71,7 +72,9 @@ def _handle_request() -> None:
                 signals.answer_started.emit()
             signals.answer_piece.emit(piece)
 
-        reply = brain.answer(question, on_token=on_piece)
+        reply = brain.answer(
+            question, on_token=on_piece, on_searching=signals.searching.emit
+        )
         finished = time.perf_counter()
 
         signals.answer_done.emit()
@@ -102,6 +105,7 @@ def main() -> None:
     signals.listening.connect(overlay.begin_listening)
     signals.level.connect(overlay.set_level)
     signals.thinking.connect(overlay.begin_thinking)
+    signals.searching.connect(overlay.begin_searching)
     signals.answer_started.connect(overlay.begin_answer)
     signals.answer_piece.connect(overlay.append_answer)
     signals.answer_done.connect(overlay.finish_answer)
