@@ -1,10 +1,16 @@
-"""Gab - press the hotkey, ask a question, get an answer.
+"""Gab - say the wake word, ask a question, hear the answer.
 
 Qt owns the main thread, because the orb has to be painted there. The tray
-icon and the listening each run on their own thread and only ever touch the
-orb by sending a signal, which Qt delivers back on the main thread.
+icon, the loading and the listening each run on their own thread and only ever
+touch the orb by sending a signal, which Qt delivers back on the main thread.
+
+Loading happens on a thread rather than before the window appears, so the tray
+icon and the orb show up straight away. Half a minute of nothing on screen
+reads as a failed start, and someone who thinks it failed launches a second
+copy - which is how you end up with two assistants answering at once.
 """
 
+import ctypes
 import sys
 import threading
 import time
@@ -19,18 +25,11 @@ from gab.overlay import Overlay
 from gab.panel import Panel
 
 
-def _start_logging() -> None:
-    """Packaged, there is no console, so send everything printed to a file."""
-    if not getattr(sys, "frozen", False):
-        return
-    stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)
-    sys.stdout = stream
-    sys.stderr = stream
-
-
 class Signals(QObject):
     """The only way a worker thread is allowed to reach the orb."""
 
+    starting = Signal()
+    ready = Signal(str)
     listening = Signal()
     level = Signal(float)
     thinking = Signal(str)
@@ -46,7 +45,41 @@ class Signals(QObject):
 signals = Signals()
 _busy = threading.Lock()
 _listener: wake.Listener | None = None
+_hotkeys: keyboard.GlobalHotKeys | None = None
 _paused_by_user = False  # the panel's pause switch, kept apart from the automatic one
+_instance_lock = None  # held for the life of the process; see _claim_single_instance
+
+
+# --- making sure only one Gab runs ---
+
+
+def _claim_single_instance() -> bool:
+    """Take a system-wide lock, so a second Gab cannot start.
+
+    Windows releases it when the process ends, a crash included, so it can
+    never be left held by a copy that is no longer running.
+    """
+    global _instance_lock
+    already_exists = 183  # ERROR_ALREADY_EXISTS
+
+    kernel32 = ctypes.windll.kernel32
+    _instance_lock = kernel32.CreateMutexW(None, False, "Gab-single-instance-7e4c1a96")
+    return kernel32.GetLastError() != already_exists
+
+
+def _say_already_running() -> None:
+    """A second launch should explain itself rather than silently do nothing."""
+    ctypes.windll.user32.MessageBoxW(
+        None,
+        "Gab is already running.\n\n"
+        "Look for the blue dot in your system tray, next to the clock. "
+        "It may be hidden behind the arrow.",
+        "Gab",
+        0x40,  # an information icon
+    )
+
+
+# --- answering a question ---
 
 
 def _handle_request() -> None:
@@ -101,7 +134,6 @@ def _handle_request() -> None:
             f"  |  transcribe {transcribed - recorded:.2f}s"
             f"  |  answer {finished - transcribed:.2f}s"
             f"  |  speaking {spoken - finished:.2f}s"
-            f"  |  question to first sound {finished - recorded:.2f}s"
         )
     except Exception as error:  # noqa: BLE001 - surface it on screen, keep running
         print(f"  failed: {error!r}")
@@ -122,7 +154,45 @@ def _trigger() -> None:
     threading.Thread(target=_handle_request, daemon=True).start()
 
 
+# --- starting up ---
+
+
+def _load_everything() -> None:
+    """The slow part, on its own thread so the orb can say what is happening."""
+    global _listener, _hotkeys
+
+    print("Loading the speech model...")
+    speech.load()
+
+    print("Loading the voice...")
+    voice.load()
+
+    print("Starting the language model...")
+    started = time.perf_counter()
+    brain.start()
+    print(f"  ready in {time.perf_counter() - started:.1f}s")
+
+    print("Measuring the room, stay quiet for a moment...")
+    print(f"Speech threshold set to {audio.calibrate():.5f}")
+
+    _listener = wake.Listener(on_wake=_trigger)
+    _listener.start()
+
+    _hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _trigger})
+    _hotkeys.start()
+
+    print(f'Ready. Say "{config.WAKE_WORD_NAME}", or press {config.HOTKEY}.')
+    signals.ready.emit(config.WAKE_WORD_NAME)
+
+
 def main() -> None:
+    # The instance check comes before the logging, because starting the log
+    # truncates it - a second launch would otherwise wipe the running copy's
+    # log, which is the one file worth having when something goes wrong.
+    if not _claim_single_instance():
+        _say_already_running()
+        return
+
     _start_logging()
     settings.load()
 
@@ -130,6 +200,8 @@ def main() -> None:
     app.setQuitOnLastWindowClosed(False)
 
     overlay = Overlay()
+    signals.starting.connect(overlay.show_starting)
+    signals.ready.connect(overlay.show_ready)
     signals.listening.connect(overlay.begin_listening)
     signals.level.connect(overlay.set_level)
     signals.thinking.connect(overlay.begin_thinking)
@@ -140,28 +212,6 @@ def main() -> None:
     signals.failed.connect(overlay.show_result)
     signals.quit.connect(app.quit)
 
-    print("Loading the speech model...")
-    speech.load()
-
-    print("Loading the voice...")
-    voice.load()
-
-    print("Starting the language model...")
-    model_started = time.perf_counter()
-    brain.start()
-    print(f"  ready in {time.perf_counter() - model_started:.1f}s")
-
-    print("Measuring the room, stay quiet for a moment...")
-    print(f"Speech threshold set to {audio.calibrate():.5f}")
-
-    global _listener
-    _listener = wake.Listener(on_wake=_trigger)
-    _listener.start()
-    print(f'Listening for the wake word "{_listener.wake_word}".')
-
-    hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _trigger})
-    hotkeys.start()
-
     def set_paused(paused: bool) -> None:
         """The panel's pause switch. Separate from Gab pausing itself."""
         global _paused_by_user
@@ -171,10 +221,12 @@ def main() -> None:
         _listener.pause() if paused else _listener.resume()
 
     def quit_gab(icon=None) -> None:
-        hotkeys.stop()
+        if _hotkeys is not None:
+            _hotkeys.stop()
         if icon is not None:
             icon.stop()
-        _listener.stop()
+        if _listener is not None:
+            _listener.stop()
         voice.stop()
         brain.stop()
         signals.quit.emit()
@@ -189,13 +241,23 @@ def main() -> None:
     icon = tray.create(on_open=signals.open_panel.emit, on_quit=quit_gab)
     threading.Thread(target=icon.run, daemon=True).start()
 
-    print(f'Ready. Say the wake word, or press {config.HOTKEY}.')
-    print("Quit from the tray icon.")
+    # Say something before the slow part starts, not after it finishes.
+    overlay.show_starting()
+    threading.Thread(target=_load_everything, daemon=True).start()
 
     try:
         sys.exit(app.exec())
     finally:
         brain.stop()
+
+
+def _start_logging() -> None:
+    """Packaged, there is no console, so send everything printed to a file."""
+    if not getattr(sys, "frozen", False):
+        return
+    stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)
+    sys.stdout = stream
+    sys.stderr = stream
 
 
 if __name__ == "__main__":

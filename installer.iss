@@ -6,13 +6,14 @@
 ; instead. The person still does nothing but run this.
 
 #define AppName "Gab"
-#define AppVersion "0.2.0"
+#define AppVersion "0.2.1"
 #define AppPublisher "Casen Clark"
 #define AppExe "Gab.exe"
 
 #define ModelFile "Qwen3.5-4B-UD-Q4_K_XL.gguf"
 #define ModelUrl "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-UD-Q4_K_XL.gguf"
 #define ModelSha "b252c5610a42ca82d20fe2a12813e9d069eed89292907e26c783eeb0bc961bc7"
+#define ModelBytes "2912109728"
 
 [Setup]
 AppId={{7E4C1A96-2B3D-4F58-9E01-6A7B8C9D0E1F}
@@ -48,7 +49,9 @@ Source: "dist\Gab\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion
 ; Everything in runtime except the language model, which arrives by download.
 Source: "runtime\*"; DestDir: "{app}\runtime"; Excludes: "models\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; The downloaded model, already sitting in the temporary folder by this point.
-Source: "{tmp}\{#ModelFile}"; DestDir: "{app}\runtime\models"; Flags: external ignoreversion
+; Skipped entirely when the right model is already installed, so updating does
+; not mean fetching three gigabytes again.
+Source: "{tmp}\{#ModelFile}"; DestDir: "{app}\runtime\models"; Flags: external ignoreversion; Check: NeedsModelDownload
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -84,6 +87,20 @@ begin
     @OnDownloadProgress);
 end;
 
+function NeedsModelDownload(): Boolean;
+var
+  Installed: String;
+  ExistingSize: Int64;
+begin
+  Result := True;
+  Installed := ExpandConstant('{app}\runtime\models\{#ModelFile}');
+  if FileExists(Installed) then
+    if FileSize64(Installed, ExistingSize) then
+      { Right name and right size means this is already the model we want, so
+        an update reinstalls the app in seconds instead of fetching 2.8 GB. }
+      Result := ExistingSize <> Int64({#ModelBytes});
+end;
+
 { The download happens here rather than on a wizard button, because a silent
   install never presses one - which would leave an installed app with no
   language model and no explanation. PrepareToInstall runs either way, and
@@ -91,6 +108,12 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
+
+  if not NeedsModelDownload() then
+  begin
+    Log('The language model is already installed. Skipping the download.');
+    Exit;
+  end;
 
   Downloader.Clear;
   { The hash is verified for us. A truncated model would otherwise fail much

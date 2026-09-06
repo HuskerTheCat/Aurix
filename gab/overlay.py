@@ -28,6 +28,7 @@ TOP_MARGIN = 48
 
 # Three colours per state. They drift over each other to make the orb move.
 PALETTES = {
+    "starting": ((120, 130, 170), (150, 160, 200), (100, 115, 160)),
     "listening": ((80, 160, 255), (140, 110, 255), (70, 220, 215)),
     "thinking": ((150, 110, 255), (230, 120, 200), (90, 150, 255)),
     "searching": ((255, 175, 70), (255, 210, 120), (240, 140, 90)),
@@ -63,6 +64,7 @@ class Overlay(QWidget):
 
         self._fade = QPropertyAnimation(self, b"windowOpacity", self)
         self._fade.setDuration(200)
+        self._hides_when_faded = False
 
         self._auto_hide = QTimer(self)
         self._auto_hide.setSingleShot(True)
@@ -91,6 +93,25 @@ class Overlay(QWidget):
         self.show()
         self._frames.start()
         self._fade_to(1.0)
+
+    def show_starting(self) -> None:
+        """Say something immediately. Loading the models takes half a minute,
+        and silence for that long reads as the app having failed to start -
+        which is exactly what makes people launch a second copy."""
+        self._state = "starting"
+        self._caption = "Starting Gab..."
+        self._level = 0.0
+        self._auto_hide.stop()
+        self._move_to_top_centre()
+        self.show()
+        self._frames.start()
+        self._fade_to(1.0)
+
+    def show_ready(self, wake_word: str) -> None:
+        self._state = "done"
+        self._caption = f'Ready. Say "{wake_word}"'
+        self._grow_to_fit()
+        self._auto_hide.start(3200)
 
     def set_level(self, level: float) -> None:
         self._level = level
@@ -150,12 +171,14 @@ class Overlay(QWidget):
 
     def _fade_to(self, target: float, then_hide: bool = False) -> None:
         self._fade.stop()
-        try:
-            self._fade.finished.disconnect()
-        except RuntimeError:
-            pass
+        # Track the connection rather than disconnecting blindly, which warns
+        # when there was nothing connected in the first place.
+        if self._hides_when_faded:
+            self._fade.finished.disconnect(self._finish_hiding)
+            self._hides_when_faded = False
         if then_hide:
             self._fade.finished.connect(self._finish_hiding)
+            self._hides_when_faded = True
         self._fade.setStartValue(self.windowOpacity())
         self._fade.setEndValue(target)
         self._fade.start()
