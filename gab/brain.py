@@ -1,13 +1,9 @@
-"""The local language model that answers questions.
+"""The local language model, and deciding when to look something up.
 
 Runs llama.cpp's server as a child process and talks to it over HTTP on this
-machine only. The model itself never reaches the internet; the one thing that
-leaves the computer is a search query, and only when a question needs one.
-
-Answering happens in two steps. First a tiny, constrained question: does this
-need a web search, and if so what for. Then the answer itself, given whatever
-was found. Splitting it that way is what makes the searching reliable - see
-the note in config.SEARCH_DECISION_PROMPT.
+machine only. Answering is two steps: a one-line routing question, then the
+answer itself. Asked together, a 4B model volunteers a search only about half
+the time.
 """
 
 import datetime
@@ -23,7 +19,6 @@ from . import config, paths, search
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
 
-# Some models narrate their reasoning. Nobody wants that read aloud.
 _THINKING = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
 
@@ -54,9 +49,7 @@ def start() -> None:
             "--host", "127.0.0.1",
             "--ctx-size", str(config.CONTEXT_SIZE),
             "--n-gpu-layers", str(config.GPU_LAYERS),
-            # Qwen narrates its reasoning by default, which for a voice
-            # assistant is pure delay - it spends its whole budget thinking
-            # out loud and never reaches the answer.
+            # Qwen rambles to itself forever without this and never answers
             "--reasoning", "off",
             "--no-webui",
         ],

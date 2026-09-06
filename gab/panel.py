@@ -1,8 +1,4 @@
-"""The little panel that opens when you click the tray icon.
-
-Everything here writes straight to settings.json, so a change survives a
-restart and an installed copy can be configured without rebuilding it.
-"""
+"""The settings panel that opens from the tray icon."""
 
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
@@ -87,7 +83,7 @@ class Panel(QWidget):
         title.setObjectName("title")
         layout.addWidget(title)
 
-        # The first thing anyone opening this wants is a reminder of what to say.
+        # mostly you just open this to remember the wake word
         wake_word = QLabel(f'Say  "{config.WAKE_WORD_NAME}"')
         wake_word.setObjectName("wakeword")
         wake_word.setAlignment(Qt.AlignCenter)
@@ -163,7 +159,7 @@ class Panel(QWidget):
         self._show_sensitivity()
 
     def _show_sensitivity(self) -> None:
-        # A low threshold wakes easily, so the friendlier label is inverted.
+        # low threshold = wakes easier, so flip it for the label
         eagerness = 100 - self._sensitivity.value()
         self._sensitivity_label.setText(f"Wake word sensitivity - {eagerness}%")
 
@@ -189,7 +185,7 @@ class Panel(QWidget):
         )
 
     def event(self, incoming) -> bool:
-        # Clicking anywhere else puts it away, the way a tray menu behaves.
+        # click away to close it, like a normal tray menu
         if incoming.type() == QEvent.WindowDeactivate:
             self.hide()
         return super().event(incoming)

@@ -1,10 +1,4 @@
-"""Where Gab's files live, whether it is running from source or installed.
-
-Packaged into an executable, everything sits beside the .exe. Running from
-source, everything sits in the project folder. Either way the answer must not
-depend on which directory the app happened to be started from - double-clicking
-a shortcut can leave that pointing almost anywhere.
-"""
+"""Locating Gab's files, whether running from source or installed."""
 
 import os
 import sys
@@ -24,7 +18,7 @@ def resolve(relative: str) -> Path:
 
 
 def log_file() -> Path:
-    """Where to write the log. Not beside the exe - that may be read-only."""
+    """The log, in a writable folder rather than beside the exe."""
     folder = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Gab"
     folder.mkdir(parents=True, exist_ok=True)
     return folder / "gab.log"

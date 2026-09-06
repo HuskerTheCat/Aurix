@@ -1,11 +1,4 @@
-"""Keyless web search, so Gab can answer questions about right now.
-
-No account and no API key, which is the point: the whole app has to work the
-moment it is installed, with nothing to sign up for.
-
-Only the search query leaves the machine, and only when the model decides it
-needs to look something up.
-"""
+"""Web search and weather. Neither needs an account or a key."""
 
 import httpx
 from ddgs import DDGS
@@ -14,12 +7,7 @@ from . import config
 
 
 def weather(place: str) -> str:
-    """Current conditions and today's forecast, as plain text for the model.
-
-    Search snippets are useless for weather - the real numbers live behind
-    scripts that a snippet never sees. wttr.in gives them straight, with no
-    account and no key.
-    """
+    """Current conditions and today's forecast, as plain text for the model."""
     reply = httpx.get(
         f"https://wttr.in/{place}",
         params={"format": "j1"},

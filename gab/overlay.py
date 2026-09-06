@@ -1,9 +1,4 @@
-"""The on-screen orb - the only thing Gab shows while it is working.
-
-A frameless, click-through window pinned to the top centre of the screen.
-It fades in when Gab wakes, breathes with your voice while you speak, and
-fades out when it is done.
-"""
+"""The on-screen orb: a frameless, click-through window at the top centre."""
 
 import math
 
@@ -26,7 +21,6 @@ ORB_RADIUS = 34
 CAPTION_TOP = 104
 TOP_MARGIN = 48
 
-# Three colours per state. They drift over each other to make the orb move.
 PALETTES = {
     "starting": ((120, 130, 170), (150, 160, 200), (100, 115, 160)),
     "listening": ((80, 160, 255), (140, 110, 255), (70, 220, 215)),
@@ -95,9 +89,7 @@ class Overlay(QWidget):
         self._fade_to(1.0)
 
     def show_starting(self) -> None:
-        """Say something immediately. Loading the models takes half a minute,
-        and silence for that long reads as the app having failed to start -
-        which is exactly what makes people launch a second copy."""
+        """Shown while the models load, which takes about half a minute."""
         self._state = "starting"
         self._caption = "Starting Gab..."
         self._level = 0.0
@@ -117,7 +109,7 @@ class Overlay(QWidget):
         self._level = level
 
     def begin_thinking(self, heard: str) -> None:
-        """Show what was heard, so a mishearing is obvious before the answer."""
+        """Shows what was heard, so a mishearing is visible."""
         self._state = "thinking"
         self._caption = heard or "Didn't catch that"
         self._level = 0.0
@@ -131,14 +123,13 @@ class Overlay(QWidget):
         self._auto_hide.start(hold_ms)
 
     def begin_searching(self, what: str) -> None:
-        """Say what is being looked up, so a pause has a visible reason."""
         self._state = "searching"
         self._caption = f"Looking up {what}"
         self._level = 0.0
         self._grow_to_fit()
 
     def begin_answer(self) -> None:
-        """Start an answer that arrives a piece at a time."""
+        """Start an answer that arrives in pieces."""
         self._state = "done"
         self._caption = ""
         self._level = 0.0
@@ -152,7 +143,7 @@ class Overlay(QWidget):
         self._auto_hide.start(hold_ms)
 
     def _grow_to_fit(self) -> None:
-        """Let the panel get taller for a long answer, up to a sensible limit."""
+        """Grow taller for a long answer, up to MAX_HEIGHT."""
         metrics = QFontMetrics(QFont("Segoe UI", 11))
         box = metrics.boundingRect(
             0, 0, WIDTH - 60, 2000, Qt.TextWordWrap, self._caption or " "
@@ -171,8 +162,7 @@ class Overlay(QWidget):
 
     def _fade_to(self, target: float, then_hide: bool = False) -> None:
         self._fade.stop()
-        # Track the connection rather than disconnecting blindly, which warns
-        # when there was nothing connected in the first place.
+        # Tracking this because disconnecting nothing spams warnings
         if self._hides_when_faded:
             self._fade.finished.disconnect(self._finish_hiding)
             self._hides_when_faded = False
@@ -189,7 +179,7 @@ class Overlay(QWidget):
 
     def _advance(self) -> None:
         self._phase += 0.028
-        # ease toward the real level so the orb breathes instead of flickering
+        # smooth it out or the orb flickers like mad
         self._eased_level += (self._level - self._eased_level) * 0.22
         self.update()
 
@@ -213,7 +203,7 @@ class Overlay(QWidget):
     def _paint_orb(self, painter: QPainter) -> None:
         centre = QPointF(WIDTH / 2, ORB_CENTRE_Y)
         loudness = min(self._eased_level * 9.0, 1.0)
-        # a slow breath when idle, a real swell when you speak
+        # gentle breathing normally, bigger swell when you talk
         breath = 0.5 + 0.5 * math.sin(self._phase * 1.6)
         radius = ORB_RADIUS * (0.78 + 0.10 * breath + 0.24 * loudness)
         colours = PALETTES[self._state]
@@ -228,7 +218,7 @@ class Overlay(QWidget):
         painter.setBrush(glow)
         painter.drawEllipse(centre, radius * 2.5, radius * 2.5)
 
-        # A solid core first, so the orb reads as a sphere rather than a smudge.
+        # solid core first or it just looks like a blur
         core = QRadialGradient(centre, radius)
         core.setColorAt(0.0, QColor(halo.red(), halo.green(), halo.blue(), 255))
         core.setColorAt(0.70, QColor(halo.red(), halo.green(), halo.blue(), 232))
@@ -237,9 +227,8 @@ class Overlay(QWidget):
         painter.setBrush(core)
         painter.drawEllipse(centre, radius, radius)
 
-        # Three colours drifting across the sphere. The offsets are 120 degrees
-        # apart with the same radius, so they always cancel out and the orb
-        # never wanders off centre.
+        # 3 colours drifting around, 120 degrees apart so they cancel out
+        # and the orb stays centred
         painter.setCompositionMode(QPainter.CompositionMode_Plus)
         drift = radius * (0.16 + 0.10 * loudness) * (0.6 + 0.4 * breath)
         for index, rgb in enumerate(colours):
@@ -257,7 +246,7 @@ class Overlay(QWidget):
             painter.drawEllipse(spot, radius * 0.92, radius * 0.92)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
-        # A soft highlight up and to the left, so it looks lit from somewhere.
+        # highlight so it looks lit from somewhere
         highlight = QRadialGradient(
             QPointF(centre.x() - radius * 0.32, centre.y() - radius * 0.38), radius * 0.72
         )

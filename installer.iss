@@ -1,9 +1,6 @@
-; Inno Setup script for Gab.
-;
 ; The installer carries the app, the voice, the speech model and the wake
-; word - about 500 MB, which fits under GitHub's 2 GB release limit. The
-; language model is nearly 3 GB and is downloaded during installation
-; instead. The person still does nothing but run this.
+; word. The language model is downloaded during installation, which keeps
+; this file small enough for a GitHub release.
 
 #define AppName "Gab"
 #define AppVersion "0.2.1"
@@ -33,7 +30,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#AppExe}
-; Roughly 500 MB of installer plus a 2.8 GB download.
+; Space for the downloaded model.
 ExtraDiskSpaceRequired=2912109728
 
 [Languages]
@@ -46,11 +43,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "dist\Gab\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\Gab\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Everything in runtime except the language model, which arrives by download.
 Source: "runtime\*"; DestDir: "{app}\runtime"; Excludes: "models\*"; Flags: ignoreversion recursesubdirs createallsubdirs
-; The downloaded model, already sitting in the temporary folder by this point.
-; Skipped entirely when the right model is already installed, so updating does
-; not mean fetching three gigabytes again.
 Source: "{tmp}\{#ModelFile}"; DestDir: "{app}\runtime\models"; Flags: external ignoreversion; Check: NeedsModelDownload
 
 [Icons]
@@ -96,15 +89,11 @@ begin
   Installed := ExpandConstant('{app}\runtime\models\{#ModelFile}');
   if FileExists(Installed) then
     if FileSize64(Installed, ExistingSize) then
-      { Right name and right size means this is already the model we want, so
-        an update reinstalls the app in seconds instead of fetching 2.8 GB. }
       Result := ExistingSize <> Int64({#ModelBytes});
 end;
 
-{ The download happens here rather than on a wizard button, because a silent
-  install never presses one - which would leave an installed app with no
-  language model and no explanation. PrepareToInstall runs either way, and
-  returning a message from it stops the install and shows that message. }
+{ Not on a wizard button: a silent install never presses one, and would end up
+  with no model and no explanation. PrepareToInstall runs either way. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
@@ -116,8 +105,7 @@ begin
   end;
 
   Downloader.Clear;
-  { The hash is verified for us. A truncated model would otherwise fail much
-    later in some baffling way, instead of here where it can be explained. }
+  { The hash is verified, so a truncated model fails here rather than later. }
   Downloader.Add('{#ModelUrl}', '{#ModelFile}', '{#ModelSha}');
 
   if not WizardSilent then

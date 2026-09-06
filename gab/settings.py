@@ -1,19 +1,13 @@
-"""The settings a person is allowed to change.
-
-config.py holds defaults and gets frozen into the executable, so nothing in it
-can be changed after installing. Anything adjustable lives here instead, in a
-small file next to the log, and the tray panel writes to it.
-"""
+"""User-changeable settings, stored outside the packaged app."""
 
 import json
 from typing import Any
 
 from . import config, paths
 
-# Only these can be changed from the panel. Everything else stays in config.
 DEFAULTS: dict[str, Any] = {
-    "microphone": config.MICROPHONE,  # None means whatever Windows is using
-    "volume": 1.0,  # 0.0 to 1.0, applied to the spoken answer
+    "microphone": config.MICROPHONE,
+    "volume": 1.0,
     "wake_threshold": config.WAKE_THRESHOLD,
 }
 

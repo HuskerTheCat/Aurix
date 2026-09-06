@@ -1,11 +1,7 @@
-"""Always-on listening for the wake word.
+"""Always-on wake word listening.
 
-A tiny model watches the microphone continuously using almost no processor.
-It is not transcribing anything and nothing is stored - it only watches for
-one sound pattern, and only once that fires does Gab start recording.
-
-The listener pauses itself while Gab is recording a question or speaking an
-answer, so it cannot be woken by its own voice.
+Nothing is transcribed or stored until the wake word fires. The listener
+pauses itself while Gab is recording or speaking, so it cannot wake itself.
 """
 
 import threading

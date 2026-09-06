@@ -1,13 +1,8 @@
 """Gab - say the wake word, ask a question, hear the answer.
 
-Qt owns the main thread, because the orb has to be painted there. The tray
-icon, the loading and the listening each run on their own thread and only ever
-touch the orb by sending a signal, which Qt delivers back on the main thread.
-
-Loading happens on a thread rather than before the window appears, so the tray
-icon and the orb show up straight away. Half a minute of nothing on screen
-reads as a failed start, and someone who thinks it failed launches a second
-copy - which is how you end up with two assistants answering at once.
+Qt owns the main thread because the orb is painted there. The tray icon, the
+loading and the listening each run on their own thread and reach the orb only
+by signal.
 """
 
 import ctypes
@@ -46,19 +41,12 @@ signals = Signals()
 _busy = threading.Lock()
 _listener: wake.Listener | None = None
 _hotkeys: keyboard.GlobalHotKeys | None = None
-_paused_by_user = False  # the panel's pause switch, kept apart from the automatic one
-_instance_lock = None  # held for the life of the process; see _claim_single_instance
-
-
-# --- making sure only one Gab runs ---
+_paused_by_user = False
+_instance_lock = None  # must stay referenced for the life of the process
 
 
 def _claim_single_instance() -> bool:
-    """Take a system-wide lock, so a second Gab cannot start.
-
-    Windows releases it when the process ends, a crash included, so it can
-    never be left held by a copy that is no longer running.
-    """
+    """Take a system-wide lock so a second Gab cannot start."""
     global _instance_lock
     already_exists = 183  # ERROR_ALREADY_EXISTS
 
@@ -68,7 +56,6 @@ def _claim_single_instance() -> bool:
 
 
 def _say_already_running() -> None:
-    """A second launch should explain itself rather than silently do nothing."""
     ctypes.windll.user32.MessageBoxW(
         None,
         "Gab is already running.\n\n"
@@ -77,9 +64,6 @@ def _say_already_running() -> None:
         "Gab",
         0x40,  # an information icon
     )
-
-
-# --- answering a question ---
 
 
 def _handle_request() -> None:
@@ -127,38 +111,31 @@ def _handle_request() -> None:
         voice.speak(reply)
         spoken = time.perf_counter()
 
-        # Only now start the fade, so the orb stays up while it is talking.
-        signals.answer_done.emit()
+        signals.answer_done.emit()  # after speaking, so the orb stays up
         print(
             f"  listen {recorded - started:.1f}s"
             f"  |  transcribe {transcribed - recorded:.2f}s"
             f"  |  answer {finished - transcribed:.2f}s"
             f"  |  speaking {spoken - finished:.2f}s"
         )
-    except Exception as error:  # noqa: BLE001 - surface it on screen, keep running
+    except Exception as error:  # noqa: BLE001 - show it, but keep running
         print(f"  failed: {error!r}")
         signals.failed.emit("Something went wrong")
     finally:
         _busy.release()
-        # Listen for the wake word again, but only now - listening any earlier
-        # means Gab hears its own voice and wakes itself up. Unless the person
-        # switched listening off while Gab was busy, which wins.
+        # wait until now or it hears itself talking and wakes up again
         if _listener is not None and not _paused_by_user:
             _listener.resume()
 
 
 def _trigger() -> None:
-    """Start a request, off whichever thread noticed - a key or the wake word."""
     if _listener is not None:
         _listener.pause()
     threading.Thread(target=_handle_request, daemon=True).start()
 
 
-# --- starting up ---
-
-
 def _load_everything() -> None:
-    """The slow part, on its own thread so the orb can say what is happening."""
+    """The slow part, on a thread so the orb can appear first."""
     global _listener, _hotkeys
 
     print("Loading the speech model...")
@@ -186,9 +163,7 @@ def _load_everything() -> None:
 
 
 def main() -> None:
-    # The instance check comes before the logging, because starting the log
-    # truncates it - a second launch would otherwise wipe the running copy's
-    # log, which is the one file worth having when something goes wrong.
+    # do this before logging starts, else a second launch wipes the log
     if not _claim_single_instance():
         _say_already_running()
         return
@@ -213,7 +188,6 @@ def main() -> None:
     signals.quit.connect(app.quit)
 
     def set_paused(paused: bool) -> None:
-        """The panel's pause switch. Separate from Gab pausing itself."""
         global _paused_by_user
         _paused_by_user = paused
         if _listener is None:
@@ -241,7 +215,6 @@ def main() -> None:
     icon = tray.create(on_open=signals.open_panel.emit, on_quit=quit_gab)
     threading.Thread(target=icon.run, daemon=True).start()
 
-    # Say something before the slow part starts, not after it finishes.
     overlay.show_starting()
     threading.Thread(target=_load_everything, daemon=True).start()
 
@@ -252,7 +225,7 @@ def main() -> None:
 
 
 def _start_logging() -> None:
-    """Packaged, there is no console, so send everything printed to a file."""
+    """Packaged there is no console, so send printed output to a file."""
     if not getattr(sys, "frozen", False):
         return
     stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)

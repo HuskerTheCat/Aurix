@@ -1,10 +1,4 @@
-"""The voice that reads answers aloud.
-
-Piper runs on the processor, so it needs no graphics card and nothing is sent
-anywhere. A medium-quality voice generates speech about thirty times faster
-than it plays, which is why the whole answer is made in one go rather than
-sentence by sentence - the extra machinery would buy a fraction of a second.
-"""
+"""Reading answers aloud, with Piper, on the processor."""
 
 import numpy as np
 import sounddevice as sd

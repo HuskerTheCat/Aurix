@@ -30,12 +30,10 @@ def microphones() -> list[tuple[int, str]]:
 
 
 def find_microphone() -> int | None:
-    """Which device to record from. None means whatever Windows is using.
+    """Which device to record from, or None for the Windows default.
 
-    A chosen microphone is a preference, not a requirement. If it is not
-    there - unplugged, or the settings came from another machine - Gab uses
-    the system default and says so, because refusing to start over a missing
-    USB microphone is worse than quietly using another one.
+    A chosen microphone is a preference, not a requirement: if it is missing,
+    Gab uses the default rather than refusing to start.
     """
     wanted = settings.get("microphone")
     if wanted is None:

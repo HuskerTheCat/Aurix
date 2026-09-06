@@ -1,57 +1,36 @@
-"""Every tunable setting for Gab lives here."""
+"""Default settings. Anything the user can change is overridden by settings.py."""
 
 # --- Microphone ---
-# The default microphone: None means whatever Windows is set to. This is only
-# the default - the real value lives in settings.json and is chosen from the
-# tray panel. It must never be a specific device here, or the app would only
-# start on a machine that happens to own that microphone.
-MICROPHONE = None
-
+MICROPHONE = None  # None means the Windows default device
 SAMPLE_RATE = 16000
 CHANNELS = 1
-BLOCK_SECONDS = 0.03  # how often we check the microphone level
+BLOCK_SECONDS = 0.03
 
 # --- Deciding when you have finished speaking ---
-# Quiet time that ends a recording. Measured against real speech: a natural
-# mid-sentence pause ran just under 0.8s, so 1.0s clears it with a little room.
-# 1.5s was tried and felt sluggish in use. Proper voice-activity detection,
-# which can tell a thinking pause from a finished sentence, replaces this
-# guesswork when the wake word lands.
 SILENCE_HANGOVER_SEC = 1.0
-MAX_RECORDING_SEC = 15.0  # hard stop, so it can never run away
-SPEECH_START_TIMEOUT_SEC = 5.0  # give up if nobody says anything
-NOISE_CALIBRATION_SEC = 0.4  # listen to the room first
-SPEECH_THRESHOLD_MULTIPLIER = 3.0  # how much louder than the room counts as speech
-MIN_SPEECH_LEVEL = 0.004  # floor, so a silent room does not trigger on nothing
-PREROLL_SEC = 0.3  # audio kept from before speech started, so no clipped first word
+MAX_RECORDING_SEC = 15.0
+SPEECH_START_TIMEOUT_SEC = 5.0
+NOISE_CALIBRATION_SEC = 0.4
+SPEECH_THRESHOLD_MULTIPLIER = 3.0
+MIN_SPEECH_LEVEL = 0.004
+PREROLL_SEC = 0.3
 
 # --- Speech recognition ---
-# A local folder, not a name: naming it makes faster-whisper fetch it from the
-# internet on first run, and Gab has to work the moment it is installed.
 WHISPER_MODEL = "runtime/whisper"
 WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE_TYPE = "int8"
-# Whisper invents words when it hears silence. Anything it is this unsure
-# about is thrown away.
-NO_SPEECH_THRESHOLD = 0.6
+NO_SPEECH_THRESHOLD = 0.6  # discard text Whisper is this unsure about
 
 # --- The language model ---
-# llama.cpp's Vulkan build, which uses whatever graphics card is present -
-# AMD, Intel or NVIDIA - and the processor when there is no usable card.
 LLAMA_SERVER = "runtime/llama/llama-server.exe"
 MODEL_PATH = "runtime/models/Qwen3.5-4B-UD-Q4_K_XL.gguf"
 LLAMA_PORT = 8127
 LLAMA_START_TIMEOUT_SEC = 120
 CONTEXT_SIZE = 4096
-GPU_LAYERS = 99  # offload everything that fits; llama.cpp keeps the rest on CPU
+GPU_LAYERS = 99
 MAX_ANSWER_TOKENS = 200
-# Low, deliberately. A chattier setting makes it confidently invent facts
-# rather than looking them up.
 TEMPERATURE = 0.3
 
-# Spoken answers, so no lists and no markdown. Short, because every extra
-# sentence is extra seconds of someone waiting to hear the end of it.
-# {today} is filled in at runtime - a model has no idea what day it is.
 SYSTEM_PROMPT = (
     "You are Gab, a voice assistant. Today is {today}.\n"
     "Your answers are read aloud, so reply in one or two short sentences of "
@@ -72,11 +51,6 @@ SEARCH_SNIPPET_CHARS = 400
 SEARCH_DECISION_TOKENS = 40
 WEATHER_TIMEOUT_SEC = 10
 
-# Deciding whether to search is a separate, deliberately tiny question. Asked
-# as part of answering, a 4B model only volunteers a search about half the
-# time - it will happily announce that it needs to look something up and then
-# not do it. Asked on its own, with one of two possible replies, it is
-# reliable. Costs about a tenth of a second.
 DECISION_PROMPT = (
     "Today is {today}. Decide how to answer the question below.\n"
     "Reply with exactly one line and nothing else, in one of these three forms:\n"
@@ -100,29 +74,15 @@ DECISION_PROMPT = (
 )
 
 # --- The voice ---
-# Placeholder. None of the Piper voices were especially liked; this one was
-# the least bad of the five tried. Being a high-quality model it takes about
-# a second to generate an answer's worth of speech, against a quarter of a
-# second for the medium ones - worth revisiting along with the voice itself.
 VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
 
 # --- The wake word ---
-# A placeholder until the custom "Hey Gab" model is trained. Swapping it is
-# a one-line change: this becomes the path to the trained .onnx file.
 WAKE_MODEL = "runtime/wakeword/hey_jarvis_v0.1.onnx"
-# What to call it on screen. Set by hand rather than worked out from the file
-# name, which is something like "hey_jarvis_v0.1". Change both together.
-WAKE_WORD_NAME = "Hey Jarvis"
-# How sure it has to be. Lower wakes more easily but also more often by
-# mistake; higher means repeating yourself.
+WAKE_WORD_NAME = "Hey Jarvis"  # change with WAKE_MODEL
 WAKE_THRESHOLD = 0.5
-WAKE_CHUNK = 1280  # 80ms of audio, what the model expects at a time
-# The two shared models every wake word is built on. Kept beside the app so
-# nothing has to be fetched at runtime.
+WAKE_CHUNK = 1280
 WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
 WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"
 
 # --- Trigger ---
-# Kept alongside the wake word: useful when a microphone is busy, and the
-# only way in if the wake word mishears you.
 HOTKEY = "<ctrl>+<alt>+g"
