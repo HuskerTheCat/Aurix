@@ -25,7 +25,7 @@ Working end to end. Say the wake word, ask a question, hear the answer.
 | Web search and weather | working |
 | Spoken replies | working |
 | Wake word | working, using a stand-in until "Hey Gab" is trained |
-| Installer | not started |
+| Installer | working, 3.2 GB, installs and runs with nothing else needed |
 
 Known rough edges:
 
@@ -46,12 +46,33 @@ py -m venv .venv
 .venv\Scripts\python main.py
 ```
 
-The language model and the voice live in `runtime/`, which is not in this
-repository because of its size. The first run also downloads the speech model
-(about 150 MB). After that it works offline.
+The models live in `runtime/`, which is not in this repository because of its
+size. Nothing is downloaded at runtime - the speech model, the voice, the
+language model and the wake word all ship with the app.
 
 Say the wake word, or press **Ctrl+Alt+G**, then ask your question.
 Quit from the tray icon.
+
+## Building the installer
+
+```powershell
+.venv\Scripts\pyinstaller --noconfirm gab.spec
+"$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer.iss
+```
+
+The first step makes `dist\Gab\`, an app that runs without Python. The second
+wraps it together with `runtime\` into a single installer, about 3.2 GB, which
+takes roughly ten minutes to compress.
+
+`runtime\` is read straight from the project folder rather than copied into
+`dist\` first. That is deliberate: the duplicate is three gigabytes and filled
+a disk once already.
+
+The installed app needs about 3.6 GB. It offers to start with Windows and to
+add a desktop shortcut, and uninstalls cleanly.
+
+An unsigned installer makes Windows show a SmartScreen warning the first time.
+That goes away with a code signing certificate, which costs money each year.
 
 ## How it works
 

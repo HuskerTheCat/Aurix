@@ -2,6 +2,7 @@ ddgs==9.16.0
 faster-whisper==1.2.1
 httpx==0.28.1
 numpy==2.5.2
+openwakeword==0.6.0
 pillow==12.3.0
 piper-tts==1.8.0
 pynput==1.8.2
