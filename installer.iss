@@ -2,10 +2,10 @@
 ; word. The language model is downloaded during installation, which keeps
 ; this file small enough for a GitHub release.
 
-#define AppName "Gab"
+#define AppName "Aurix"
 #define AppVersion "0.3.0"
 #define AppPublisher "Casen Clark"
-#define AppExe "Gab.exe"
+#define AppExe "Aurix.exe"
 
 #define ModelFile "Qwen3.5-4B-UD-Q4_K_XL.gguf"
 #define ModelUrl "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-UD-Q4_K_XL.gguf"
@@ -20,8 +20,8 @@ AppPublisher={#AppPublisher}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-OutputDir=D:\GabBuild
-OutputBaseFilename=GabSetup-{#AppVersion}
+OutputDir=D:\AurixBuild
+OutputBaseFilename=AurixSetup-{#AppVersion}
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern
@@ -37,12 +37,12 @@ ExtraDiskSpaceRequired=2912109728
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "startup"; Description: "Start Gab when Windows starts"; GroupDescription: "Additional shortcuts:"
+Name: "startup"; Description: "Start Aurix when Windows starts"; GroupDescription: "Additional shortcuts:"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "dist\Gab\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\Gab\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\Aurix\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\Aurix\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "runtime\*"; DestDir: "{app}\runtime"; Excludes: "models\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{tmp}\{#ModelFile}"; DestDir: "{app}\runtime\models"; Flags: external ignoreversion; Check: NeedsModelDownload
 
@@ -52,7 +52,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Name: "{userstartup}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: startup
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Start Gab now"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "Start Aurix now"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\runtime"
@@ -75,7 +75,7 @@ procedure InitializeWizard;
 begin
   Downloader := CreateDownloadPage(
     'Downloading the language model',
-    'Gab needs a language model, about 2.8 GB. This is the only download, and'
+    'Aurix needs a language model, about 2.8 GB. This is the only download, and'
     + ' it happens once. Everything else is already in this installer.',
     @OnDownloadProgress);
 end;

@@ -64,7 +64,7 @@ MODELS = [
     ),
     _model(
         "4B", "Qwen3.5-4B-UD-Q4_K_XL.gguf",
-        "Medium (4B)", "What Gab installs with. Fine for simple questions.",
+        "Medium (4B)", "What Aurix installs with. Fine for simple questions.",
         2912109728,
     ),
     _model(

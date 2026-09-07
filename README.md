@@ -1,8 +1,8 @@
-# Gab
+# Aurix
 
 A voice assistant that runs on your own computer.
 
-![Gab](docs/orb-done.png)
+![Aurix](docs/orb-done.png)
 
 ## Install
 
@@ -38,7 +38,7 @@ py -m venv .venv
 The models live in `runtime/`, which isn't in the repo. To build the installer:
 
 ```powershell
-.venv\Scripts\pyinstaller --noconfirm gab.spec
+.venv\Scripts\pyinstaller --noconfirm aurix.spec
 "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer.iss
 ```
 

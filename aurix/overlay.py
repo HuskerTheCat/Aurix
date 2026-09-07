@@ -75,7 +75,7 @@ class Overlay(QWidget):
             screen.y() + TOP_MARGIN,
         )
 
-    # --- what Gab tells it to do ---
+    # --- what Aurix tells it to do ---
 
     def begin_listening(self) -> None:
         self._state = "listening"
@@ -91,7 +91,7 @@ class Overlay(QWidget):
     def show_starting(self) -> None:
         """Shown while the models load, which takes about half a minute."""
         self._state = "starting"
-        self._caption = "Starting Gab..."
+        self._caption = "Starting Aurix..."
         self._level = 0.0
         self._auto_hide.stop()
         self._move_to_top_centre()

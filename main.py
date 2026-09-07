@@ -1,4 +1,4 @@
-"""Gab - say the wake word, ask a question, hear the answer.
+"""Aurix - say the wake word, ask a question, hear the answer.
 
 Qt owns the main thread because the orb is painted there. The tray icon, the
 loading and the listening each run on their own thread and reach the orb only
@@ -14,11 +14,11 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from gab import audio, brain, config, paths, settings, speech, tray, voice, wake
-from gab.audio import NoSpeechDetected, record_until_silence
-from gab.overlay import Overlay
-from gab.panel import Panel
-from gab.window import Window
+from aurix import audio, brain, config, paths, settings, speech, tray, voice, wake
+from aurix.audio import NoSpeechDetected, record_until_silence
+from aurix.overlay import Overlay
+from aurix.panel import Panel
+from aurix.window import Window
 
 
 class Signals(QObject):
@@ -47,22 +47,22 @@ _instance_lock = None  # must stay referenced for the life of the process
 
 
 def _claim_single_instance() -> bool:
-    """Take a system-wide lock so a second Gab cannot start."""
+    """Take a system-wide lock so a second Aurix cannot start."""
     global _instance_lock
     already_exists = 183  # ERROR_ALREADY_EXISTS
 
     kernel32 = ctypes.windll.kernel32
-    _instance_lock = kernel32.CreateMutexW(None, False, "Gab-single-instance-7e4c1a96")
+    _instance_lock = kernel32.CreateMutexW(None, False, "Aurix-single-instance-7e4c1a96")
     return kernel32.GetLastError() != already_exists
 
 
 def _say_already_running() -> None:
     ctypes.windll.user32.MessageBoxW(
         None,
-        "Gab is already running.\n\n"
+        "Aurix is already running.\n\n"
         "Look for the blue dot in your system tray, next to the clock. "
         "It may be hidden behind the arrow.",
-        "Gab",
+        "Aurix",
         0x40,  # an information icon
     )
 
@@ -222,7 +222,7 @@ def main() -> None:
             return
         _listener.pause() if paused else _listener.resume()
 
-    def quit_gab(icon=None) -> None:
+    def quit_aurix(icon=None) -> None:
         settings_window.close()
         if _hotkeys is not None:
             _hotkeys.stop()
@@ -243,11 +243,11 @@ def main() -> None:
         on_pause=set_paused,
         on_stop_speaking=voice.stop,
         on_settings=settings_window.open,
-        on_quit=lambda: quit_gab(icon),
+        on_quit=lambda: quit_aurix(icon),
     )
     signals.open_panel.connect(panel.toggle)
 
-    icon = tray.create(on_open=signals.open_panel.emit, on_quit=quit_gab)
+    icon = tray.create(on_open=signals.open_panel.emit, on_quit=quit_aurix)
     threading.Thread(target=icon.run, daemon=True).start()
 
     overlay.show_starting()

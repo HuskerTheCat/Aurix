@@ -135,7 +135,7 @@ class Window(QWidget):
         self._cards: dict[str, Card] = {}
         self._cancel: dict[str, bool] = {}
 
-        self.setWindowTitle("Gab")
+        self.setWindowTitle("Aurix")
         self.setObjectName("settings")
         self.setFixedSize(740, 640)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
@@ -162,7 +162,7 @@ class Window(QWidget):
         layout.setSpacing(12)
 
         heading = QHBoxLayout()
-        title = QLabel("Gab settings")
+        title = QLabel("Aurix settings")
         title.setObjectName("title")
         heading.addWidget(title)
         heading.addStretch(1)
@@ -293,7 +293,7 @@ class Window(QWidget):
         column.addWidget(self._hangover_label)
         column.addWidget(self._hangover)
         column.addWidget(
-            self._dim("How long you can go quiet mid-sentence before Gab decides "
+            self._dim("How long you can go quiet mid-sentence before Aurix decides "
                       "you are finished. Raise it if you get cut off.")
         )
 

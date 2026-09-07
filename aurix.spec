@@ -1,4 +1,4 @@
-# Builds dist/Gab, which runs without Python. Models aren't in here - the
+# Builds dist/Aurix, which runs without Python. Models aren't in here - the
 # installer drops them next to the exe.
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files
@@ -35,12 +35,12 @@ exe = EXE(
     analysis.scripts,
     [],
     exclude_binaries=True,
-    name="Gab",
+    name="Aurix",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False,  # output goes to gab.log instead
+    console=False,  # output goes to aurix.log instead
     icon=None,
 )
 
@@ -50,5 +50,5 @@ collect = COLLECT(
     analysis.datas,
     strip=False,
     upx=False,
-    name="Gab",
+    name="Aurix",
 )

@@ -40,7 +40,7 @@ MEMORY_TIMEOUT_SEC = 300  # after this much quiet, the thread is dropped
 CREATOR = "Husker"
 
 SYSTEM_PROMPT = (
-    "You are Gab, a voice assistant. Today is {today}.\n"
+    "You are Aurix, a voice assistant. Today is {today}.\n"
     "You were made by {creator}. If anyone asks who made you, who created you, "
     "who your developer is or where you came from, the answer is {creator} and "
     "nothing else. Do not name the company that trained the model.\n"
@@ -78,7 +78,7 @@ DECISION_PROMPT = (
     "approximately, even if you think you know them.\n"
     "Use DIRECT only for things that never change: definitions, how something "
     "works, arithmetic, spelling, general explanations.\n"
-    "Anything about Gab itself - who made it, what it is, what it can do - is "
+    "Anything about Aurix itself - who made it, what it is, what it can do - is "
     "always DIRECT.\n\n"
     "Examples:\n"
     "  How long is the drive from Denver to Salt Lake City?\n"

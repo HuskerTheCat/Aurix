@@ -33,7 +33,7 @@ def find_microphone() -> int | None:
     """Which device to record from, or None for the Windows default.
 
     A chosen microphone is a preference, not a requirement: if it is missing,
-    Gab uses the default rather than refusing to start.
+    Aurix uses the default rather than refusing to start.
     """
     wanted = settings.get("microphone")
     if wanted is None:

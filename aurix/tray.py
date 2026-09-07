@@ -17,7 +17,7 @@ def _icon_image() -> Image.Image:
 def create(on_open, on_quit) -> pystray.Icon:
     """on_open runs on a left click; on_quit is passed the icon."""
     menu = pystray.Menu(
-        pystray.MenuItem("Open Gab", lambda _icon, _item: on_open(), default=True),
-        pystray.MenuItem("Quit Gab", lambda icon, _item: on_quit(icon)),
+        pystray.MenuItem("Open Aurix", lambda _icon, _item: on_open(), default=True),
+        pystray.MenuItem("Quit Aurix", lambda icon, _item: on_quit(icon)),
     )
-    return pystray.Icon("gab", _icon_image(), "Gab", menu)
+    return pystray.Icon("aurix", _icon_image(), "Aurix", menu)

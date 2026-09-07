@@ -13,6 +13,6 @@ takes/
 *.log
 
 # Kept locally, not published: the roadmap and the development scripts.
-# Neither is needed to download, build or use Gab.
+# Neither is needed to download, build or use Aurix.
 TODO.md
 tools/

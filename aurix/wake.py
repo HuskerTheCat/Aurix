@@ -1,7 +1,7 @@
 """Always-on wake word listening.
 
 Nothing is transcribed or stored until the wake word fires. The listener
-pauses itself while Gab is recording or speaking, so it cannot wake itself.
+pauses itself while Aurix is recording or speaking, so it cannot wake itself.
 """
 
 import threading
@@ -53,7 +53,7 @@ class Listener:
         self._listening.set()  # let the loop wake up and exit
 
     def pause(self) -> None:
-        """Stop listening - while Gab is recording or talking."""
+        """Stop listening - while Aurix is recording or talking."""
         self._listening.clear()
 
     def resume(self) -> None:

@@ -40,7 +40,7 @@ class Panel(QWidget):
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Gab")
+        title = QLabel("Aurix")
         title.setObjectName("title")
         layout.addWidget(title)
 
