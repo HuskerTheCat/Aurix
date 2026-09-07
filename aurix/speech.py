@@ -28,7 +28,12 @@ def transcribe(audio: np.ndarray) -> str:
     if _model is None:
         raise RuntimeError("speech.load() must be called before transcribe()")
 
-    segments, _info = _model.transcribe(audio, language="en", beam_size=1)
+    segments, _info = _model.transcribe(
+        audio,
+        language="en",
+        beam_size=config.WHISPER_BEAM,
+        initial_prompt=config.SPEECH_HINT,
+    )
     real_speech = [
         segment.text.strip()
         for segment in segments

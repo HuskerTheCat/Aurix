@@ -22,6 +22,16 @@ WHISPER_MODEL = "runtime/whisper"
 WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE_TYPE = "int8"
 NO_SPEECH_THRESHOLD = 0.6  # discard text Whisper is this unsure about
+WHISPER_BEAM = 5
+
+# Whisper's mistakes are nearly all names it had no reason to expect, so it gets
+# told what tends to come up. Free, and it halved the errors - a model three
+# times the size did worse and took three times as long.
+SPEECH_HINT = (
+    "Aurix, Spotify, YouTube, Wikipedia, GitHub, Reddit, Twitch, Amazon, "
+    "Google Maps, Arduino, playlist, queue, volume, pause, resume, skip, "
+    "weather, forecast."
+)
 
 # --- The language model ---
 LLAMA_SERVER = "runtime/llama/llama-server.exe"
