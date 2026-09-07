@@ -209,7 +209,9 @@ def _route(question: str) -> tuple[str, str]:
     line = verdict.strip().splitlines()[0].strip() if verdict.strip() else ""
     upper = line.upper()
 
-    for verb in ("PLAY", "QUEUE", "CONTROL", "VOLUME", "OPEN", "WEATHER", "SEARCH"):
+    for verb in (
+        "PLAY", "QUEUE", "CONTROL", "VOLUME", "OPEN", "TIME", "WEATHER", "SEARCH"
+    ):
         if upper.startswith(f"{verb}:"):
             argument = line[len(verb) + 1 :].strip().strip('"')
             if verb == "SEARCH":
@@ -220,13 +222,17 @@ def _route(question: str) -> tuple[str, str]:
     return "direct", ""
 
 
-# The flag is whether it has to look something up first, which the orb says.
+# Handled without asking the model anything, so they are as quick as the thing
+# itself. The flag is whether something gets looked up first, which the orb says.
 _DOING = {
     "play": (spotify.play, True),
     "queue": (spotify.queue, True),
     "control": (actions.control, False),
     "volume": (actions.volume, False),
     "open": (actions.open_page, False),
+    # straight off the clock - asked through the model it used to claim it had
+    # no way of knowing, or answer from the weather, which has no time in it
+    "time": (search.local_time, False),
 }
 
 

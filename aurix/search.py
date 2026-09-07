@@ -1,4 +1,6 @@
-"""Web search and weather. Neither needs an account or a key."""
+"""Web search, weather and the time. None of it needs an account or a key."""
+
+import datetime
 
 import httpx
 from ddgs import DDGS
@@ -26,6 +28,42 @@ def weather(place: str) -> str:
         f"wind {now['windspeedMiles']} miles per hour.\n"
         f"Today: high {today['maxtempF']}, low {today['mintempF']}."
     )
+
+
+def local_time(place: str) -> str:
+    """What time it is somewhere, spoken. Same service as the weather.
+
+    Answered straight from the clock rather than through the model, which used
+    to insist it had no way of knowing.
+    """
+    if place.strip().lower() in ("here", "", "local", "my location"):
+        now = datetime.datetime.now()
+        return f"It is {_spoken_clock(now.hour, now.minute)}."
+
+    reply = httpx.get(
+        f"https://wttr.in/{place}",
+        params={"format": "%T %Z"},
+        headers={"User-Agent": "curl/8"},
+        timeout=config.WEATHER_TIMEOUT_SEC,
+    )
+    reply.raise_for_status()
+
+    clock = reply.text.strip().split(" ")[0]
+    if ":" not in clock:
+        return f"I could not find the time in {place}."
+
+    hours, minutes = (int(part) for part in clock.split(":")[:2])
+    return f"It is {_spoken_clock(hours, minutes)} in {place}."
+
+
+def _spoken_clock(hours: int, minutes: int) -> str:
+    part_of_day = (
+        "in the morning" if hours < 12
+        else "in the afternoon" if hours < 18
+        else "in the evening" if hours < 22
+        else "at night"
+    )
+    return f"{hours % 12 or 12}:{minutes:02d} {part_of_day}"
 
 
 def web_search(query: str) -> str:
