@@ -46,13 +46,20 @@ _paused_by_user = False
 _instance_lock = None  # must stay referenced for the life of the process
 
 
+# Deliberately still says Gab. This string is the app's identity, not its name,
+# and every version has to use the same one - when the rename changed it, an
+# older installed copy stopped seeing the new one and both ran at once, each
+# answering out loud. Never change it again.
+_INSTANCE_LOCK_NAME = "Gab-single-instance-7e4c1a96"
+
+
 def _claim_single_instance() -> bool:
-    """Take a system-wide lock so a second Aurix cannot start."""
+    """Take a system-wide lock so a second copy cannot start."""
     global _instance_lock
     already_exists = 183  # ERROR_ALREADY_EXISTS
 
     kernel32 = ctypes.windll.kernel32
-    _instance_lock = kernel32.CreateMutexW(None, False, "Aurix-single-instance-7e4c1a96")
+    _instance_lock = kernel32.CreateMutexW(None, False, _INSTANCE_LOCK_NAME)
     return kernel32.GetLastError() != already_exists
 
 
@@ -162,6 +169,14 @@ def _swap_model() -> None:
 
 def _load_everything() -> None:
     """The slow part, on a thread so the orb can appear first."""
+    try:
+        _load()
+    except Exception as error:  # noqa: BLE001 - say so instead of hanging on "Starting"
+        print(f"could not start: {error!r}")
+        signals.failed.emit(str(error))
+
+
+def _load() -> None:
     global _listener, _hotkeys
 
     print("Loading the speech model...")
@@ -259,13 +274,29 @@ def main() -> None:
         brain.stop()
 
 
+class _Tee:
+    """Writes to the console and the log at once."""
+
+    def __init__(self, *streams) -> None:
+        self._streams = streams
+
+    def write(self, text) -> None:
+        for stream in self._streams:
+            stream.write(text)
+
+    def flush(self) -> None:
+        for stream in self._streams:
+            stream.flush()
+
+
 def _start_logging() -> None:
-    """Packaged there is no console, so send printed output to a file."""
-    if not getattr(sys, "frozen", False):
-        return
+    """Always write a log. Packaged there is no console to write to instead."""
     stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)
-    sys.stdout = stream
-    sys.stderr = stream
+    if getattr(sys, "frozen", False):
+        sys.stdout = sys.stderr = stream
+        return
+    sys.stdout = _Tee(sys.stdout, stream)
+    sys.stderr = _Tee(sys.stderr, stream)
 
 
 if __name__ == "__main__":

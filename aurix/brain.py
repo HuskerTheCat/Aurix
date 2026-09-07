@@ -9,6 +9,7 @@ the time.
 import datetime
 import json
 import re
+import socket
 import subprocess
 import time
 
@@ -51,6 +52,14 @@ def start() -> None:
     if not model.exists():
         raise FileNotFoundError(f"model missing: {model}")
 
+    # Without this it would happily talk to somebody else's model server and
+    # look like it was working, which is how two copies ended up answering.
+    if _port_in_use():
+        raise RuntimeError(
+            f"port {config.LLAMA_PORT} is already taken, so another copy is "
+            "still running. Close it and try again."
+        )
+
     _hardware = {}
 
     _process = subprocess.Popen(
@@ -77,6 +86,12 @@ def start() -> None:
     _client = httpx.Client(timeout=httpx.Timeout(120.0, connect=5.0))
     _wait_until_ready()
     _hardware = _read_hardware()
+
+
+def _port_in_use() -> bool:
+    with socket.socket() as probe:
+        probe.settimeout(0.5)
+        return probe.connect_ex(("127.0.0.1", config.LLAMA_PORT)) == 0
 
 
 def _read_hardware() -> dict:
@@ -257,6 +272,7 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
 
     _drop_stale()
     route, argument = _route(question)
+    print(f"  route: {route} {argument}".rstrip())
 
     if route in _DOING:
         return _do(route, argument, question, on_token, on_searching)
