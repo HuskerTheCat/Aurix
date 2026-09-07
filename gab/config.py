@@ -33,6 +33,10 @@ GPU_LAYERS = 99
 MAX_ANSWER_TOKENS = 200
 TEMPERATURE = 0.3
 
+# --- Remembering the conversation ---
+MEMORY_TURNS = 4  # how many past exchanges to keep
+MEMORY_TIMEOUT_SEC = 300  # after this much quiet, the thread is dropped
+
 SYSTEM_PROMPT = (
     "You are Gab, a voice assistant. Today is {today}.\n"
     "Your answers are read aloud, so reply in one or two short sentences of "
@@ -44,7 +48,9 @@ SYSTEM_PROMPT = (
     "If the information does not contain the answer, say so in one short "
     "sentence.\n"
     "If you are not given search results, answer from what you know, and say "
-    "plainly when you are unsure rather than inventing a specific figure."
+    "plainly when you are unsure rather than inventing a specific figure.\n"
+    "Earlier questions and answers may be above. Follow-ups like 'how tall is "
+    "it' refer to whatever was just being discussed."
 )
 
 # --- Web search ---
@@ -72,7 +78,16 @@ DECISION_PROMPT = (
     "  WEATHER: Seattle\n"
     "  What is a capacitor?\n"
     "  DIRECT\n\n"
-    "Question: {question}"
+    "{recent}Question: {question}"
+)
+
+# Put in front of the question above when the question is a follow-up, so that
+# "how tall is it" gets searched for the right thing.
+RECENT_PROMPT = (
+    "This continues a conversation. Already asked, in order: {questions}\n"
+    "The last answer was: {answer}\n"
+    "Read the new question in that light. If it says 'it' or 'they', work out "
+    "what that means and name it in full in the search query.\n\n"
 )
 
 # --- The voice ---

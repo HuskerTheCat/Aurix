@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 from . import audio, brain, catalog, config, download, paths, settings, theme, voice
 
 SAMPLE = "This is how I sound. Ask me anything."
+HEADER = 52  # the strip at the top you can drag the window by
 
 
 def _size(byte_count: int) -> str:
@@ -134,8 +136,12 @@ class Window(QWidget):
         self._cancel: dict[str, bool] = {}
 
         self.setWindowTitle("Gab")
-        self.resize(720, 620)
+        self.setObjectName("settings")
+        self.setFixedSize(740, 640)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet(theme.stylesheet())
+        self._dragging_from = None
 
         self.progress.connect(self._on_progress)
         self.finished.connect(self._on_finished)
@@ -145,13 +151,27 @@ class Window(QWidget):
         self._build()
 
     def _build(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 14)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        shell = QFrame()
+        shell.setObjectName("shell")
+        outer.addWidget(shell)
+
+        layout = QVBoxLayout(shell)
+        layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(12)
 
+        heading = QHBoxLayout()
         title = QLabel("Gab settings")
         title.setObjectName("title")
-        layout.addWidget(title)
+        heading.addWidget(title)
+        heading.addStretch(1)
+        close = QPushButton("✕")
+        close.setObjectName("close")
+        close.setFixedSize(28, 28)
+        close.clicked.connect(self.hide)
+        heading.addWidget(close)
+        layout.addLayout(heading)
 
         tabs = QTabWidget()
         tabs.addTab(self._model_tab(), "Model")
@@ -329,6 +349,9 @@ class Window(QWidget):
         logs = QPushButton("Open log folder")
         logs.clicked.connect(lambda: os.startfile(paths.log_file().parent))
         row.addWidget(logs)
+        forget = QPushButton("Forget the conversation")
+        forget.clicked.connect(self._forget)
+        row.addWidget(forget)
         row.addStretch(1)
         column.addLayout(row)
 
@@ -364,6 +387,10 @@ class Window(QWidget):
 
     def _say(self, text: str) -> None:
         threading.Thread(target=voice.speak, args=(text,), daemon=True).start()
+
+    def _forget(self) -> None:
+        brain.forget()
+        self._note.setText("Forgotten. The next question starts fresh.")
 
     # --- what the buttons do ---
 
@@ -531,6 +558,25 @@ class Window(QWidget):
 
     def open(self) -> None:
         self._refresh()
+        if self._dragging_from is None and not self.isVisible():
+            self._centre()
         self.show()
         self.raise_()
         self.activateWindow()
+
+    def _centre(self) -> None:
+        screen = QApplication.primaryScreen().availableGeometry()
+        self.move(screen.center() - self.rect().center())
+
+    # --- dragging it around, since there is no title bar to grab ---
+
+    def mousePressEvent(self, event) -> None:
+        if event.position().y() <= HEADER:
+            self._dragging_from = event.globalPosition().toPoint() - self.pos()
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._dragging_from is not None:
+            self.move(event.globalPosition().toPoint() - self._dragging_from)
+
+    def mouseReleaseEvent(self, _event) -> None:
+        self._dragging_from = None

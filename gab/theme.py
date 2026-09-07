@@ -38,6 +38,16 @@ THEMES = {
 TEMPLATE = """
 QWidget {{ background: {bg}; color: {text}; font-family: 'Segoe UI'; font-size: 12px; }}
 QWidget#panel {{ border: 1px solid {border}; border-radius: 12px; }}
+/* the settings window draws its own frame, so Windows does not paint a
+   red title bar over the top of it */
+QWidget#settings {{ background: transparent; }}
+QFrame#shell {{
+    background: {bg}; border: 1px solid {border}; border-radius: 12px;
+}}
+QPushButton#close {{
+    background: transparent; border: none; color: {text}; font-size: 15px;
+}}
+QPushButton#close:hover {{ background: {surface}; border-radius: 6px; color: {bright}; }}
 QLabel {{ background: transparent; }}
 QLabel#title {{ color: {bright}; font-size: 15px; font-weight: 600; }}
 QLabel#heading {{ color: {bright}; font-size: 13px; font-weight: 600; }}

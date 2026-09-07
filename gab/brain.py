@@ -20,6 +20,8 @@ _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
 _hardware: dict = {}
 _last_answer: dict = {}
+_history: list[tuple[str, str]] = []  # what has been asked and answered
+_spoke_at: float = 0.0
 
 _THINKING = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
@@ -159,9 +161,30 @@ def _ask(messages: list, max_tokens: int, temperature: float, on_token=None) -> 
     return _THINKING.sub("", "".join(pieces)).strip()
 
 
+def forget() -> None:
+    """Drop the conversation so far."""
+    _history.clear()
+
+
+def _drop_stale() -> None:
+    """A question minutes after the last one is a new conversation, not a follow-up."""
+    if _history and time.monotonic() - _spoke_at > config.MEMORY_TIMEOUT_SEC:
+        forget()
+
+
 def _route(question: str) -> tuple[str, str]:
     """Decide how to answer. Returns ('direct'|'search'|'weather', argument)."""
-    prompt = config.DECISION_PROMPT.format(today=_today(), question=question)
+    recent = ""
+    if _history:
+        # every question, because the subject is often several turns back
+        recent = config.RECENT_PROMPT.format(
+            questions="; ".join(f'"{asked}"' for asked, _ in _history),
+            answer=_history[-1][1],
+        )
+
+    prompt = config.DECISION_PROMPT.format(
+        today=_today(), question=question, recent=recent
+    )
     verdict = _ask(
         [{"role": "user", "content": prompt}],
         max_tokens=config.SEARCH_DECISION_TOKENS,
@@ -184,10 +207,11 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
     on_token is called with each new piece of the spoken answer.
     on_searching is called with what is being looked up, so the orb can say so.
     """
-    global _last_answer
+    global _last_answer, _spoke_at
     if _client is None:
         raise RuntimeError("brain.start() must be called before answer()")
 
+    _drop_stale()
     route, argument = _route(question)
 
     content = question
@@ -200,16 +224,26 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
             on_searching(argument)
         content = f"Search results:\n\n{search.web_search(argument)}\n\nQuestion: {question}"
 
+    messages = [
+        {"role": "system", "content": config.SYSTEM_PROMPT.format(today=_today())}
+    ]
+    for asked, replied in _history:
+        messages.append({"role": "user", "content": asked})
+        messages.append({"role": "assistant", "content": replied})
+    messages.append({"role": "user", "content": content})
+
     started = time.perf_counter()
     reply = _ask(
-        [
-            {"role": "system", "content": config.SYSTEM_PROMPT.format(today=_today())},
-            {"role": "user", "content": content},
-        ],
+        messages,
         max_tokens=config.MAX_ANSWER_TOKENS,
         temperature=config.TEMPERATURE,
         on_token=on_token,
     )
+
+    # the bare question is remembered, not the search results it was wrapped in
+    _history.append((question, reply))
+    del _history[: -config.MEMORY_TURNS]
+    _spoke_at = time.monotonic()
 
     seconds = time.perf_counter() - started
     _last_answer = {"words": len(reply.split()), "seconds": seconds, "looked_up": route}
