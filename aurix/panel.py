@@ -3,7 +3,6 @@
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import config, settings, theme
+from .switch import Switch
 
 WIDTH = 300
 MARGIN = 12  # gap from the corner of the screen
@@ -34,6 +34,7 @@ class Panel(QWidget):
         self.setFixedWidth(WIDTH)
 
         self._build()
+        self._paused.set_colours(*theme.switch_colours())
 
     def _build(self) -> None:
         layout = QVBoxLayout(self)
@@ -60,7 +61,7 @@ class Panel(QWidget):
         layout.addWidget(self._volume)
         self._show_volume()
 
-        self._paused = QCheckBox("Pause listening")
+        self._paused = Switch("Pause listening")
         self._paused.toggled.connect(self._on_pause)
         layout.addWidget(self._paused)
 
@@ -94,6 +95,7 @@ class Panel(QWidget):
     def restyle(self) -> None:
         """Called when the colours change in the settings window."""
         self.setStyleSheet(theme.stylesheet())
+        self._paused.set_colours(*theme.switch_colours())
 
     def toggle(self) -> None:
         if self.isVisible():

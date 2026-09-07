@@ -13,12 +13,15 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QApplication, QWidget
 
+from . import avatar, settings, voice
+
 WIDTH = 400
 HEIGHT = 170
 MAX_HEIGHT = 420
 ORB_CENTRE_Y = 62
 ORB_RADIUS = 34
 CAPTION_TOP = 104
+FACE_SCALE = 0.72
 TOP_MARGIN = 48
 
 PALETTES = {
@@ -179,8 +182,10 @@ class Overlay(QWidget):
 
     def _advance(self) -> None:
         self._phase += 0.028
-        # smooth it out or the orb flickers like mad
-        self._eased_level += (self._level - self._eased_level) * 0.22
+        # the microphone while you talk, the voice while it talks back
+        heard = max(self._level, voice.speaking_level())
+        # smooth it out or it flickers like mad
+        self._eased_level += (heard - self._eased_level) * 0.22
         self.update()
 
     # --- drawing ---
@@ -189,8 +194,21 @@ class Overlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         self._paint_backdrop(painter)
-        self._paint_orb(painter)
+        self._paint_face(painter)
         self._paint_caption(painter)
+
+    def _paint_face(self, painter: QPainter) -> None:
+        if settings.get("face") == "orb":
+            self._paint_orb(painter)
+            return
+        avatar.paint(
+            painter,
+            QPointF(WIDTH / 2, ORB_CENTRE_Y),
+            FACE_SCALE,
+            self._state,
+            self._eased_level,
+            self._phase,
+        )
 
     def _paint_backdrop(self, painter: QPainter) -> None:
         """A dark rounded panel, so the text stays readable on any wallpaper."""

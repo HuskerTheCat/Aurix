@@ -103,3 +103,9 @@ def palette() -> dict:
 
 def stylesheet() -> str:
     return TEMPLATE.format(**palette())
+
+
+def switch_colours() -> tuple:
+    """The switch paints itself, so it cannot pick these up from the stylesheet."""
+    colours = palette()
+    return colours["accent"], colours["border"], colours["bright"], colours["text"]

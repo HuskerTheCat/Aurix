@@ -29,6 +29,8 @@ FILLERS = ["Hmm.", "Let me think.", "One second.", "Right."]
 _voice: PiperVoice | None = None
 _talking: "Speech | None" = None
 _fillers: list = []
+_speaking = 0.0  # how loud it is right now, for the face
+_playing = False  # cleared by stop(), so following the loudness lets go early
 
 
 def load() -> None:
@@ -77,6 +79,8 @@ def begin() -> "Speech":
 
 def stop() -> None:
     """Cut the speech off part way through."""
+    global _playing
+    _playing = False
     if _talking is not None:
         _talking.cancel()
     sd.stop()
@@ -143,8 +147,32 @@ def _render(speaker: PiperVoice, text: str):
     return audio, chunks[0].sample_rate
 
 
+def speaking_level() -> float:
+    """0 to 1 while it is talking, so the mouth can move with it."""
+    return _speaking
+
+
 def _out(sound) -> None:
-    sd.play(*sound)
+    """Play it, following the loudness as it goes so the face can lip sync."""
+    global _speaking, _playing
+    audio, rate = sound
+    sd.play(audio, rate)
+    _playing = True
+
+    step = max(1, int(rate * 0.04))
+    began = time.perf_counter()
+    length = len(audio) / rate
+    while _playing:
+        elapsed = time.perf_counter() - began
+        if elapsed >= length:
+            break
+        at = int(elapsed * rate)
+        chunk = audio[at : at + step].astype(np.float32) / 32768.0
+        _speaking = float(np.sqrt(np.mean(np.square(chunk)))) if chunk.size else 0.0
+        time.sleep(0.03)
+
+    _speaking = 0.0
+    _playing = False
     sd.wait()
 
 

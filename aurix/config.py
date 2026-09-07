@@ -1,6 +1,6 @@
 """Default settings. Anything the user can change is overridden by settings.py."""
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 # --- Microphone ---
 MICROPHONE = None  # None means the Windows default device
@@ -67,8 +67,10 @@ SYSTEM_PROMPT = (
     "If you are not given search results, answer from what you know, and say "
     "plainly when you are unsure rather than inventing a specific figure.\n"
     "Never say you have no internet, no access to real-time data, or that you "
-    "cannot look things up or open pages. You can do all of it. If you were "
-    "not given the information and do not know it, just say you are not sure.\n"
+    "cannot play music, open pages or look things up. You can do all of it, "
+    "and telling someone to go and do it themselves is always wrong. If you "
+    "were not given the information and do not know it, just say you are not "
+    "sure.\n"
     "Earlier questions and answers may be above. Follow-ups like 'how tall is "
     "it' refer to whatever was just being discussed."
 )
@@ -98,6 +100,10 @@ DECISION_PROMPT = (
     "Otherwise use PLAY.\n"
     "CONTROL back means the previous song, restart means this song again.\n"
     "Searching a named website is OPEN, not SEARCH.\n"
+    "Take names as given, even when they look wrong or mean nothing - speech "
+    "gets misheard and the song or page is looked up afterwards. Never turn "
+    "'play something' into SEARCH just because you do not recognise the title. "
+    "Drop a trailing 'on Spotify'.\n"
     "Use SEARCH for any current information, and for any specific number, "
     "price, date, score, sports result, news event or opening time.\n"
     "Distance and travel time between two places ALWAYS need SEARCH, even "
@@ -111,6 +117,8 @@ DECISION_PROMPT = (
     "  PLAY: Bohemian Rhapsody\n"
     "  Put on my discover weekly playlist\n"
     "  PLAY: discover weekly playlist\n"
+    "  Play the note we met on Spotify\n"
+    "  PLAY: the note we met\n"
     "  Add Thunderstruck to the queue\n"
     "  QUEUE: Thunderstruck\n"
     "  Play Dreams next\n"

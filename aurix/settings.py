@@ -16,6 +16,7 @@ DEFAULTS: dict[str, Any] = {
     "voice": Path(config.VOICE_MODEL).name,
     "models_folder": str(paths.resolve("runtime/models")),
     "theme": "midnight",
+    "face": "protogen",
 }
 
 _values: dict[str, Any] = dict(DEFAULTS)

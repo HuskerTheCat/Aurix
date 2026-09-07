@@ -8,7 +8,6 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -24,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import audio, brain, catalog, config, download, paths, settings, theme, voice
+from .switch import Switch
 
 SAMPLE = "This is how I sound. Ask me anything."
 HEADER = 52  # the strip at the top you can drag the window by
@@ -149,6 +149,7 @@ class Window(QWidget):
         self.moved.connect(self._on_moved)
 
         self._build()
+        self._filler.set_colours(*theme.switch_colours())
 
     def _build(self) -> None:
         outer = QVBoxLayout(self)
@@ -297,7 +298,7 @@ class Window(QWidget):
                       "you are finished. Raise it if you get cut off.")
         )
 
-        self._filler = QCheckBox("Say something while it thinks")
+        self._filler = Switch("Say something while it thinks")
         self._filler.setChecked(settings.get("think_out_loud"))
         self._filler.toggled.connect(
             lambda on: settings.put("think_out_loud", on)
@@ -326,7 +327,21 @@ class Window(QWidget):
         self._theme.currentIndexChanged.connect(self._theme_changed)
         column.addWidget(self._theme)
 
-        column.addWidget(self._dim("The orb keeps its own colours for now."))
+        column.addWidget(self._label("Face"))
+        self._face = QComboBox()
+        self._face.addItem("Protogen", "protogen")
+        self._face.addItem("Orb", "orb")
+        chosen_face = self._face.findData(settings.get("face"))
+        self._face.setCurrentIndex(chosen_face if chosen_face >= 0 else 0)
+        self._face.currentIndexChanged.connect(
+            lambda _i: settings.put("face", self._face.currentData())
+        )
+        column.addWidget(self._face)
+        column.addWidget(
+            self._dim("The protogen is a placeholder drawn in code until there "
+                      "is real art. The orb is what it used to be.")
+        )
+
         column.addStretch(1)
         return tab
 
@@ -475,6 +490,7 @@ class Window(QWidget):
     def _theme_changed(self, _index: int) -> None:
         settings.put("theme", self._theme.currentData())
         self.setStyleSheet(theme.stylesheet())
+        self._filler.set_colours(*theme.switch_colours())
         self._on_theme()
         self._refresh()
 

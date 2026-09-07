@@ -12,7 +12,8 @@ takes/
 *.wav
 *.log
 
-# Kept locally, not published: the roadmap and the development scripts.
-# Neither is needed to download, build or use Aurix.
+# Kept locally, not published: the roadmap, my notes for Claude, and the
+# development scripts. None of it is needed to download, build or use Aurix.
 TODO.md
+CLAUDE.md
 tools/

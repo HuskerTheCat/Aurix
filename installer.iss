@@ -3,7 +3,7 @@
 ; this file small enough for a GitHub release.
 
 #define AppName "Aurix"
-#define AppVersion "0.3.0"
+#define AppVersion "0.3.1"
 #define AppPublisher "Casen Clark"
 #define AppExe "Aurix.exe"
 
