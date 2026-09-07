@@ -225,7 +225,12 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
         content = f"Search results:\n\n{search.web_search(argument)}\n\nQuestion: {question}"
 
     messages = [
-        {"role": "system", "content": config.SYSTEM_PROMPT.format(today=_today())}
+        {
+            "role": "system",
+            "content": config.SYSTEM_PROMPT.format(
+                today=_today(), creator=config.CREATOR
+            ),
+        }
     ]
     for asked, replied in _history:
         messages.append({"role": "user", "content": asked})
