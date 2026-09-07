@@ -1,8 +1,6 @@
 # Gab
 
-A voice assistant that runs on your own computer. No account, no API key, and
-nothing leaves the machine except a web search when a question needs one.
-
+A voice assistant that runs on your own computer.
 ![Gab](docs/orb-done.png)
 
 ## Install
