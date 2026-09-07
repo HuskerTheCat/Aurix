@@ -18,6 +18,11 @@ def load() -> None:
     )
 
 
+def warm_up() -> None:
+    """First transcription is slower than the rest, so get it over with."""
+    transcribe(np.zeros(config.SAMPLE_RATE // 2, dtype=np.float32))
+
+
 def transcribe(audio: np.ndarray) -> str:
     """Transcribe mono float32 audio recorded at config.SAMPLE_RATE."""
     if _model is None:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -215,7 +216,10 @@ class Window(QWidget):
         column.setContentsMargins(14, 14, 14, 14)
         column.setSpacing(10)
 
-        column.addWidget(self._dim("Preview plays a line so you can hear it first."))
+        column.addWidget(
+            self._dim("Preview plays a line so you can hear it first. The quick ones "
+                      "start talking about a second sooner than the natural ones.")
+        )
         column.addWidget(self._scrolling(catalog.VOICES, on_preview=self._preview), 1)
         return tab
 
@@ -271,6 +275,17 @@ class Window(QWidget):
         column.addWidget(
             self._dim("How long you can go quiet mid-sentence before Gab decides "
                       "you are finished. Raise it if you get cut off.")
+        )
+
+        self._filler = QCheckBox("Say something while it thinks")
+        self._filler.setChecked(settings.get("think_out_loud"))
+        self._filler.toggled.connect(
+            lambda on: settings.put("think_out_loud", on)
+        )
+        column.addWidget(self._filler)
+        column.addWidget(
+            self._dim("A quick \"hmm\" the moment you finish asking, so it does not "
+                      "sit there in silence while it works the answer out.")
         )
 
         column.addStretch(1)

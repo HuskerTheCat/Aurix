@@ -94,14 +94,26 @@ def _handle_request() -> None:
         print(f'  heard: "{question}"')
         signals.thinking.emit(question)
 
+        speech_out = voice.begin()
+        if settings.get("think_out_loud"):
+            speech_out.say_sound(voice.filler())
+
         first_word_at = None
+        unspoken = ""
 
         def on_piece(piece: str) -> None:
-            nonlocal first_word_at
+            nonlocal first_word_at, unspoken
             if first_word_at is None:
                 first_word_at = time.perf_counter()
                 signals.answer_started.emit()
             signals.answer_piece.emit(piece)
+
+            # hand each finished sentence straight to the voice, so it starts
+            # talking while the rest of the answer is still being written
+            unspoken += piece
+            done, unspoken = voice.whole_sentences(unspoken)
+            for sentence in done:
+                speech_out.say(sentence)
 
         reply = brain.answer(
             question, on_token=on_piece, on_searching=signals.searching.emit
@@ -109,15 +121,18 @@ def _handle_request() -> None:
         finished = time.perf_counter()
 
         print(f'  said:  "{reply}"')
-        voice.speak(reply)
+        speech_out.say(unspoken)
+        speech_out.finish()
         spoken = time.perf_counter()
 
         signals.answer_done.emit()  # after speaking, so the orb stays up
+        talking_from = speech_out.started_at or spoken
         print(
             f"  listen {recorded - started:.1f}s"
             f"  |  transcribe {transcribed - recorded:.2f}s"
-            f"  |  answer {finished - transcribed:.2f}s"
-            f"  |  speaking {spoken - finished:.2f}s"
+            f"  |  quiet {talking_from - transcribed:.2f}s"
+            f"  |  talking {spoken - talking_from:.2f}s"
+            f"  |  answer written in {finished - transcribed:.2f}s"
         )
     except Exception as error:  # noqa: BLE001 - show it, but keep running
         print(f"  failed: {error!r}")
@@ -151,9 +166,11 @@ def _load_everything() -> None:
 
     print("Loading the speech model...")
     speech.load()
+    speech.warm_up()
 
     print("Loading the voice...")
     voice.load()
+    voice.warm_up()
 
     print("Starting the language model...")
     started = time.perf_counter()

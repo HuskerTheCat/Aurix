@@ -11,6 +11,7 @@ DEFAULTS: dict[str, Any] = {
     "volume": 1.0,
     "wake_threshold": config.WAKE_THRESHOLD,
     "silence_hangover": config.SILENCE_HANGOVER_SEC,
+    "think_out_loud": True,
     "model": Path(config.MODEL_PATH).name,
     "voice": Path(config.VOICE_MODEL).name,
     "models_folder": str(paths.resolve("runtime/models")),

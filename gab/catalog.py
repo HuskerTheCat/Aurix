@@ -82,27 +82,27 @@ MODELS = [
 VOICES = [
     _voice(
         "en/en_GB/cori/high/en_GB-cori-high.onnx",
-        "Cori", "British, female. What Gab installs with.", 114219352,
+        "Cori", "British, female. Natural, but slower to start talking.", 114219352,
     ),
     _voice(
         "en/en_US/amy/medium/en_US-amy-medium.onnx",
-        "Amy", "American, female. The fastest of these.", 63201294,
+        "Amy", "American, female. Quick.", 63201294,
     ),
     _voice(
         "en/en_US/lessac/high/en_US-lessac-high.onnx",
-        "Lessac", "American, female. Very clear.", 113895201,
+        "Lessac", "American, female. Very clear, but slower to start talking.", 113895201,
     ),
     _voice(
         "en/en_US/hfc_female/medium/en_US-hfc_female-medium.onnx",
-        "Hannah", "American, female. Warmer, a bit softer.", 63201294,
+        "Hannah", "American, female. Warmer and softer, and quick.", 63201294,
     ),
     _voice(
         "en/en_US/ryan/high/en_US-ryan-high.onnx",
-        "Ryan", "American, male.", 120786792,
+        "Ryan", "American, male. Slower to start talking.", 120786792,
     ),
     _voice(
         "en/en_GB/alba/medium/en_GB-alba-medium.onnx",
-        "Alba", "Scottish, female.", 63201294,
+        "Alba", "Scottish, female. Quick.", 63201294,
     ),
 ]
 
