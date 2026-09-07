@@ -1,6 +1,7 @@
 # Gab
 
 A voice assistant that runs on your own computer.
+
 ![Gab](docs/orb-done.png)
 
 ## Install
