@@ -20,6 +20,16 @@ Sits in the system tray as a blue dot.
 - Or press **Ctrl + Alt + G**.
 - Click the tray icon for the quick panel, or **Settings** for everything else.
 
+As well as answering questions it can do a few things:
+
+- *"Play Take On Me"*, *"play the rock classics playlist"* - Spotify, no
+  account needed, the song is found by searching the web.
+- *"Pause"*, *"skip this song"*, *"go back"* - works with any music player.
+- *"Open YouTube"*, *"pull up the Wikipedia page for the Eiffel Tower"* -
+  anything it does not recognise it searches for and opens the top result.
+
+It only ever opens web links and Spotify. It will not run a program.
+
 ![Panel](docs/panel.png)
 
 Settings is where you swap the model for a bigger one, change the voice, and

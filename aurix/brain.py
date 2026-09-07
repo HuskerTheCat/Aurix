@@ -14,7 +14,7 @@ import time
 
 import httpx
 
-from . import catalog, config, paths, search
+from . import actions, catalog, config, paths, search
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -194,11 +194,55 @@ def _route(question: str) -> tuple[str, str]:
     line = verdict.strip().splitlines()[0].strip() if verdict.strip() else ""
     upper = line.upper()
 
-    if upper.startswith("WEATHER:"):
-        return "weather", line[len("WEATHER:") :].strip().strip('"')
-    if upper.startswith("SEARCH:"):
-        return "search", line[len("SEARCH:") :].strip().strip('"') or question
+    for verb in ("PLAY", "CONTROL", "OPEN", "WEATHER", "SEARCH"):
+        if upper.startswith(f"{verb}:"):
+            argument = line[len(verb) + 1 :].strip().strip('"')
+            if verb == "SEARCH":
+                return "search", argument or question
+            if not argument:
+                break  # a doing verb with nothing to do is not a decision
+            return verb.lower(), argument
     return "direct", ""
+
+
+# The flag is whether it has to look something up first, which the orb says.
+_DOING = {
+    "play": (actions.play, True),
+    "control": (actions.control, False),
+    "open": (actions.open_page, False),
+}
+
+
+def _do(route, argument, question, on_token, on_searching) -> str:
+    """Carry out a request instead of answering it.
+
+    No model call, so this is as quick as whatever it is being asked to do.
+    """
+    global _last_answer, _spoke_at
+    doing, looks_up = _DOING[route]
+
+    if looks_up and on_searching is not None:
+        on_searching(argument)
+
+    started = time.perf_counter()
+    try:
+        said = doing(argument)
+    except Exception as error:  # noqa: BLE001 - say so rather than falling over
+        print(f"  could not {route} {argument!r}: {error!r}")
+        said = "I could not do that."
+
+    if on_token is not None:
+        on_token(said)
+
+    _history.append((question, said))
+    del _history[: -config.MEMORY_TURNS]
+    _spoke_at = time.monotonic()
+    _last_answer = {
+        "words": len(said.split()),
+        "seconds": time.perf_counter() - started,
+        "looked_up": route,
+    }
+    return said
 
 
 def answer(question: str, on_token=None, on_searching=None) -> str:
@@ -213,6 +257,9 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
 
     _drop_stale()
     route, argument = _route(question)
+
+    if route in _DOING:
+        return _do(route, argument, question, on_token, on_searching)
 
     content = question
     if route == "weather":
