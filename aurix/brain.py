@@ -15,7 +15,7 @@ import time
 
 import httpx
 
-from . import actions, catalog, config, paths, search
+from . import actions, catalog, config, paths, search, spotify
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -209,7 +209,7 @@ def _route(question: str) -> tuple[str, str]:
     line = verdict.strip().splitlines()[0].strip() if verdict.strip() else ""
     upper = line.upper()
 
-    for verb in ("PLAY", "CONTROL", "OPEN", "WEATHER", "SEARCH"):
+    for verb in ("PLAY", "QUEUE", "CONTROL", "VOLUME", "OPEN", "WEATHER", "SEARCH"):
         if upper.startswith(f"{verb}:"):
             argument = line[len(verb) + 1 :].strip().strip('"')
             if verb == "SEARCH":
@@ -222,8 +222,10 @@ def _route(question: str) -> tuple[str, str]:
 
 # The flag is whether it has to look something up first, which the orb says.
 _DOING = {
-    "play": (actions.play, True),
+    "play": (spotify.play, True),
+    "queue": (spotify.queue, True),
     "control": (actions.control, False),
+    "volume": (actions.volume, False),
     "open": (actions.open_page, False),
 }
 
