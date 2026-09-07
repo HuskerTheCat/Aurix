@@ -14,12 +14,20 @@ import time
 
 import httpx
 
-from . import config, paths, search
+from . import catalog, config, paths, search
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
+_hardware: dict = {}
+_last_answer: dict = {}
 
 _THINKING = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+
+# What the model server says about the machine, at -lv 4.
+_ACCELERATOR = r"(?:Vulkan|CUDA|ROCm|Metal|SYCL)\d+"
+_DEVICE = re.compile(rf"- {_ACCELERATOR} : (.+?) \((\d+) MiB")
+_LAYERS = re.compile(r"offloaded (\d+)/(\d+) layers to GPU")
+_VRAM = re.compile(rf"{_ACCELERATOR} model buffer size =\s+([\d.]+) MiB")
 
 
 def _base_url() -> str:
@@ -32,14 +40,16 @@ def _today() -> str:
 
 def start() -> None:
     """Launch the model server and wait until it is ready to answer."""
-    global _process, _client
+    global _process, _client, _hardware
 
     server = paths.resolve(config.LLAMA_SERVER)
-    model = paths.resolve(config.MODEL_PATH)
+    model = catalog.model_file(catalog.chosen_model())
     if not server.exists():
         raise FileNotFoundError(f"llama server missing: {server}")
     if not model.exists():
         raise FileNotFoundError(f"model missing: {model}")
+
+    _hardware = {}
 
     _process = subprocess.Popen(
         [
@@ -52,6 +62,10 @@ def start() -> None:
             # Qwen rambles to itself forever without this and never answers
             "--reasoning", "off",
             "--no-webui",
+            # 4 is the level that names the graphics card without logging every token
+            "-lv", "4",
+            "--log-colors", "off",
+            "--log-file", str(paths.llama_log()),
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -60,6 +74,47 @@ def start() -> None:
 
     _client = httpx.Client(timeout=httpx.Timeout(120.0, connect=5.0))
     _wait_until_ready()
+    _hardware = _read_hardware()
+
+
+def _read_hardware() -> dict:
+    """Pull what the server said about the machine out of its own log.
+
+    This is the only honest answer to "is it actually on the graphics card" -
+    llama.cpp falls back to the processor without complaining.
+    """
+    log = paths.llama_log()
+    if not log.exists():
+        return {}
+
+    text = log.read_text(encoding="utf-8", errors="replace")
+    found = {}
+
+    device = _DEVICE.findall(text)
+    if device:
+        found["device"] = device[0][0].strip()
+        found["card_mb"] = int(device[0][1])
+
+    layers = _LAYERS.findall(text)
+    if layers:
+        found["layers"] = int(layers[-1][0])
+        found["of_layers"] = int(layers[-1][1])
+
+    vram = _VRAM.findall(text)
+    if vram:
+        found["vram_mb"] = max(float(value) for value in vram)
+
+    return found
+
+
+def hardware() -> dict:
+    """What the model server reported about the graphics card."""
+    return dict(_hardware)
+
+
+def last_answer() -> dict:
+    """Words and seconds from the most recent answer."""
+    return dict(_last_answer)
 
 
 def _wait_until_ready() -> None:
@@ -129,6 +184,7 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
     on_token is called with each new piece of the spoken answer.
     on_searching is called with what is being looked up, so the orb can say so.
     """
+    global _last_answer
     if _client is None:
         raise RuntimeError("brain.start() must be called before answer()")
 
@@ -144,7 +200,8 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
             on_searching(argument)
         content = f"Search results:\n\n{search.web_search(argument)}\n\nQuestion: {question}"
 
-    return _ask(
+    started = time.perf_counter()
+    reply = _ask(
         [
             {"role": "system", "content": config.SYSTEM_PROMPT.format(today=_today())},
             {"role": "user", "content": content},
@@ -153,6 +210,16 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
         temperature=config.TEMPERATURE,
         on_token=on_token,
     )
+
+    seconds = time.perf_counter() - started
+    _last_answer = {"words": len(reply.split()), "seconds": seconds, "looked_up": route}
+    return reply
+
+
+def restart() -> None:
+    """Swap to whichever model is chosen now. Takes a while on a big one."""
+    stop()
+    start()
 
 
 def stop() -> None:

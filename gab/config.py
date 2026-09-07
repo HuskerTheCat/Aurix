@@ -1,5 +1,7 @@
 """Default settings. Anything the user can change is overridden by settings.py."""
 
+VERSION = "0.3.0"
+
 # --- Microphone ---
 MICROPHONE = None  # None means the Windows default device
 SAMPLE_RATE = 16000

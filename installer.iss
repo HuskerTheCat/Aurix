@@ -3,7 +3,7 @@
 ; this file small enough for a GitHub release.
 
 #define AppName "Gab"
-#define AppVersion "0.2.1"
+#define AppVersion "0.3.0"
 #define AppPublisher "Casen Clark"
 #define AppExe "Gab.exe"
 

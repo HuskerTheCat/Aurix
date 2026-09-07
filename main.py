@@ -18,6 +18,7 @@ from gab import audio, brain, config, paths, settings, speech, tray, voice, wake
 from gab.audio import NoSpeechDetected, record_until_silence
 from gab.overlay import Overlay
 from gab.panel import Panel
+from gab.window import Window
 
 
 class Signals(QObject):
@@ -134,6 +135,16 @@ def _trigger() -> None:
     threading.Thread(target=_handle_request, daemon=True).start()
 
 
+def _swap_model() -> None:
+    """Restart the model server on whichever model is chosen now."""
+    if _listener is not None:
+        _listener.pause()
+    with _busy:
+        brain.restart()
+    if _listener is not None and not _paused_by_user:
+        _listener.resume()
+
+
 def _load_everything() -> None:
     """The slow part, on a thread so the orb can appear first."""
     global _listener, _hotkeys
@@ -195,6 +206,7 @@ def main() -> None:
         _listener.pause() if paused else _listener.resume()
 
     def quit_gab(icon=None) -> None:
+        settings_window.close()
         if _hotkeys is not None:
             _hotkeys.stop()
         if icon is not None:
@@ -205,9 +217,15 @@ def main() -> None:
         brain.stop()
         signals.quit.emit()
 
+    def restyle() -> None:
+        panel.restyle()
+
+    settings_window = Window(apply_model=_swap_model, on_theme=restyle)
+
     panel = Panel(
         on_pause=set_paused,
         on_stop_speaking=voice.stop,
+        on_settings=settings_window.open,
         on_quit=lambda: quit_gab(icon),
     )
     signals.open_panel.connect(panel.toggle)

@@ -1,6 +1,7 @@
 """User-changeable settings, stored outside the packaged app."""
 
 import json
+from pathlib import Path
 from typing import Any
 
 from . import config, paths
@@ -9,6 +10,11 @@ DEFAULTS: dict[str, Any] = {
     "microphone": config.MICROPHONE,
     "volume": 1.0,
     "wake_threshold": config.WAKE_THRESHOLD,
+    "silence_hangover": config.SILENCE_HANGOVER_SEC,
+    "model": Path(config.MODEL_PATH).name,
+    "voice": Path(config.VOICE_MODEL).name,
+    "models_folder": str(paths.resolve("runtime/models")),
+    "theme": "midnight",
 }
 
 _values: dict[str, Any] = dict(DEFAULTS)

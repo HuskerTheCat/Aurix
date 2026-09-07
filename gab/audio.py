@@ -127,7 +127,7 @@ def record_until_silence(on_level=None) -> np.ndarray:
                 silence_for = 0.0
             else:
                 silence_for += config.BLOCK_SECONDS
-                if silence_for >= config.SILENCE_HANGOVER_SEC:
+                if silence_for >= settings.get("silence_hangover"):
                     break
 
     return np.concatenate(collected).flatten()

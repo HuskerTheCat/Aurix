@@ -22,3 +22,8 @@ def log_file() -> Path:
     folder = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Gab"
     folder.mkdir(parents=True, exist_ok=True)
     return folder / "gab.log"
+
+
+def llama_log() -> Path:
+    """Where the model server writes its own log, next to Gab's."""
+    return log_file().parent / "llama.log"

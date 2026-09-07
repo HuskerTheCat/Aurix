@@ -18,9 +18,14 @@ Sits in the system tray as a blue dot.
 
 - Say **"Hey Jarvis"**, pause, then ask.
 - Or press **Ctrl + Alt + G**.
-- Click the tray icon for settings.
+- Click the tray icon for the quick panel, or **Settings** for everything else.
 
-![Settings](docs/panel.png)
+![Panel](docs/panel.png)
+
+Settings is where you swap the model for a bigger one, change the voice, and
+see whether your graphics card is actually being used.
+
+![Settings](docs/settings.png)
 
 ## Building it
 
