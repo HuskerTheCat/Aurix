@@ -182,7 +182,12 @@ RECENT_PROMPT = (
 )
 
 # --- The voice ---
-VOICE_MODEL = "runtime/voices/en_GB-cori-high.onnx"
+# Kokoro keeps every voice in one file, so there is nothing to download per
+# voice the way there was with Piper - picking one is just a name.
+KOKORO_MODEL = "runtime/voices/kokoro.onnx"
+KOKORO_VOICES = "runtime/voices/voices.bin"
+VOICE = "af_heart"
+KOKORO_LANGUAGE = "en-us"
 
 # --- The wake word ---
 WAKE_MODEL = "runtime/wakeword/hey_jarvis_v0.1.onnx"

@@ -57,4 +57,4 @@ The models live in `runtime/`, which isn't in the repo. To build the installer:
 Built on [faster-whisper](https://github.com/SYSTRAN/faster-whisper),
 [openWakeWord](https://github.com/dscripka/openWakeWord),
 [llama.cpp](https://github.com/ggml-org/llama.cpp) and
-[Piper](https://github.com/rhasspy/piper).
+[Kokoro](https://github.com/thewh1teagle/kokoro-onnx).

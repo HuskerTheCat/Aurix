@@ -7,7 +7,9 @@
 #define AppPublisher "Casen Clark"
 #define AppExe "Aurix.exe"
 
-#define StartingVoice "en_GB-cori-high"
+; Every voice lives in these two, so there is nothing to fetch per voice.
+#define VoiceEngine "kokoro.onnx"
+#define VoiceBank "voices.bin"
 
 #define ModelFile "Qwen3.5-4B-UD-Q4_K_XL.gguf"
 #define ModelUrl "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-UD-Q4_K_XL.gguf"
@@ -45,11 +47,12 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "dist\Aurix\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\Aurix\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Only the voice Aurix starts with. The rest are downloaded from the settings
-; window if wanted, and shipping them all put 350 MB on this file for nothing.
+; The voices folder is listed on its own so a stray file left in there while
+; testing cannot quietly add itself to this installer, which is how it once
+; grew by 350 MB.
 Source: "runtime\*"; DestDir: "{app}\runtime"; Excludes: "models\*,voices\*"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "runtime\voices\{#StartingVoice}.onnx"; DestDir: "{app}\runtime\voices"; Flags: ignoreversion
-Source: "runtime\voices\{#StartingVoice}.onnx.json"; DestDir: "{app}\runtime\voices"; Flags: ignoreversion
+Source: "runtime\voices\{#VoiceEngine}"; DestDir: "{app}\runtime\voices"; Flags: ignoreversion
+Source: "runtime\voices\{#VoiceBank}"; DestDir: "{app}\runtime\voices"; Flags: ignoreversion
 Source: "{tmp}\{#ModelFile}"; DestDir: "{app}\runtime\models"; Flags: external ignoreversion; Check: NeedsModelDownload
 
 [Icons]

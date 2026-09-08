@@ -101,7 +101,9 @@ class Card(QFrame):
 
         words = QVBoxLayout()
         words.setSpacing(2)
-        self._name = QLabel(f"{item.name}  -  {_size(item.size)}")
+        # only models have a size worth showing - every voice is in the one file
+        title = f"{item.name}  -  {_size(item.size)}" if isinstance(item, catalog.Model) else item.name
+        self._name = QLabel(title)
         self._name.setObjectName("heading")
         words.addWidget(self._name)
         note = QLabel(item.note)
@@ -290,8 +292,9 @@ class Window(QWidget):
         column.setSpacing(10)
 
         column.addWidget(
-            self._dim("Preview plays a line so you can hear it first. The quick ones "
-                      "start talking about a second sooner than the natural ones.")
+            self._dim("Preview plays a line so you can hear it first. They all sound "
+                      "like Aurix - the robot voice goes on top of whichever you pick, "
+                      "and it was built around Heart.")
         )
         column.addWidget(self._scrolling(catalog.VOICES, on_preview=self._preview), 1)
         return tab
@@ -482,7 +485,7 @@ class Window(QWidget):
 
     def _preview(self, item) -> None:
         threading.Thread(
-            target=voice.preview, args=(catalog.voice_file(item), SAMPLE), daemon=True
+            target=voice.preview, args=(item.key, SAMPLE), daemon=True
         ).start()
 
     def _download(self, item) -> None:
@@ -495,20 +498,15 @@ class Window(QWidget):
         self._cancel[item.key] = True
 
     def _download_worker(self, item) -> None:
-        is_model = isinstance(item, catalog.Model)
-        target = catalog.model_file(item) if is_model else catalog.voice_file(item)
+        """Only models are ever downloaded - the voices ship with the app."""
         try:
             download.fetch(
                 item.url,
-                target,
+                catalog.model_file(item),
                 item.size,
                 lambda done: self.progress.emit(item.key, done),
                 lambda: self._cancel[item.key],
             )
-            if not is_model:
-                download.fetch_small(
-                    item.url + ".json", target.with_name(target.name + ".json")
-                )
         except download.Cancelled:
             self.finished.emit(item.key, "cancelled")
             return

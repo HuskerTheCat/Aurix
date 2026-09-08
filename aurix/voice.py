@@ -1,9 +1,16 @@
-"""Reading answers aloud, with Piper, on the processor.
+"""Reading answers aloud, with Kokoro, on the processor.
 
 Speaking is the slowest part of answering, so it starts on the first finished
-sentence rather than waiting for the whole reply. A "high" voice runs at about
-3x realtime and a "medium" one at about 12x, which is most of the difference
-between a quick answer and an awkward pause.
+sentence rather than waiting for the whole reply. Kokoro makes speech at about
+3.6x realtime here, so a first sentence lands in well under a second and the
+pre-rendered "hmm" covers even that.
+
+Everything goes through robot.py on the way out, which is what makes it sound
+like Aurix rather than like a person. That includes the fillers, or the noises
+it makes while thinking would be in a different voice from the answer.
+
+Measure with the process pinned to the P-cores. Left alone, Windows drifts the
+work onto the E-cores part way through and this drops to 0.7x without warning.
 """
 
 import queue
@@ -14,9 +21,9 @@ import time
 
 import numpy as np
 import sounddevice as sd
-from piper import PiperVoice
+from kokoro_onnx import Kokoro
 
-from . import catalog, settings
+from . import catalog, config, robot, settings
 
 # A sentence ends at punctuation followed by a space. "3.5" has no space, so
 # it survives; "Mr. Smith" does not, which is a gap nobody has noticed yet.
@@ -26,7 +33,7 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 # thinks. Rendered at startup and kept in memory, so saying one costs nothing.
 FILLERS = ["Hmm.", "Let me think.", "One second.", "Right."]
 
-_voice: PiperVoice | None = None
+_engine: Kokoro | None = None
 _talking: "Speech | None" = None
 _fillers: list = []
 _speaking = 0.0  # how loud it is right now, for the face
@@ -34,17 +41,22 @@ _playing = False  # cleared by stop(), so following the loudness lets go early
 
 
 def load() -> None:
-    """Load the chosen voice. Called again after you pick a different one."""
-    global _voice, _fillers
-    _voice = PiperVoice.load(catalog.voice_file(catalog.chosen_voice()))
+    """Load the voice engine. Every voice is in it, so this is done once."""
+    global _engine, _fillers
+    model, voices = catalog.kokoro_files()
+    if not model.exists():
+        raise FileNotFoundError(f"voice engine missing: {model}")
+    if not voices.exists():
+        raise FileNotFoundError(f"voices missing: {voices}")
+    _engine = Kokoro(str(model), str(voices))
     _fillers = []
 
 
 def warm_up() -> None:
     """First synthesis is slow, and the fillers have to be ready instantly."""
     global _fillers
-    list(_voice.synthesize("Ready."))
-    _fillers = [_render(_voice, line) for line in FILLERS]
+    _say_it("Ready.", catalog.chosen_voice().key)
+    _fillers = [_render(line) for line in FILLERS]
 
 
 def filler():
@@ -54,14 +66,14 @@ def filler():
 
 def speak(text: str) -> None:
     """Say something and wait. For the Test button and previews."""
-    if _voice is None:
+    if _engine is None:
         raise RuntimeError("voice.load() must be called before speak()")
-    _play(_voice, text)
+    _play(text, catalog.chosen_voice().key)
 
 
-def preview(path, text: str) -> None:
+def preview(name: str, text: str) -> None:
     """Try a voice out without switching to it."""
-    _play(PiperVoice.load(path), text)
+    _play(text, name)
 
 
 def whole_sentences(buffer: str) -> tuple[list[str], str]:
@@ -118,7 +130,7 @@ class Speech:
             item = self._waiting.get()
             if item is None or self._cancelled:
                 return
-            sound = item if isinstance(item, tuple) else _render(_voice, item)
+            sound = item if isinstance(item, tuple) else _render(item)
             if sound is None:
                 continue
             # stamped after making the audio, so it really is the first sound
@@ -127,24 +139,24 @@ class Speech:
             _out(sound)
 
 
-def _render(speaker: PiperVoice, text: str):
-    """Turn text into audio. This is the slow part of speaking."""
+def _say_it(text: str, name: str):
+    """Ask Kokoro for the words, slowed ready for robot.apply to speed them up."""
+    return _engine.create(
+        text, voice=name, speed=robot.SPEAK_SPEED, lang=config.KOKORO_LANGUAGE
+    )
+
+
+def _render(text: str, name: str | None = None):
+    """Turn text into Aurix's voice. This is the slow part of speaking."""
     if not text.strip():
         return None
 
-    chunks = list(speaker.synthesize(text))
-    if not chunks:
+    samples, rate = _say_it(text, name or catalog.chosen_voice().key)
+    if not len(samples):
         return None
 
-    audio = np.concatenate(
-        [np.frombuffer(chunk.audio_int16_bytes, dtype=np.int16) for chunk in chunks]
-    )
-
-    volume = settings.get("volume")
-    if volume < 1.0:
-        audio = (audio * volume).astype(np.int16)
-
-    return audio, chunks[0].sample_rate
+    audio = robot.apply(samples.astype(np.float64), rate) * settings.get("volume")
+    return (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16), rate
 
 
 def speaking_level() -> float:
@@ -176,7 +188,7 @@ def _out(sound) -> None:
     sd.wait()
 
 
-def _play(speaker: PiperVoice, text: str) -> None:
-    sound = _render(speaker, text)
+def _play(text: str, name: str) -> None:
+    sound = _render(text, name)
     if sound is not None:
         _out(sound)

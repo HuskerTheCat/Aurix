@@ -1,20 +1,23 @@
 # Builds dist/Aurix, which runs without Python. Models aren't in here - the
 # installer drops them next to the exe.
 
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
 datas = []
 binaries = []
 hiddenimports = []
 
-# Stuff PyInstaller can't work out on its own
-for package in ("faster_whisper", "openwakeword", "piper", "ctranslate2", "ddgs"):
+# Stuff PyInstaller can't work out on its own. espeakng_loader carries the
+# espeak-ng dll and its data, which Kokoro shells out to for pronunciation -
+# without it the voice loads and then dies on the first word.
+for package in (
+    "faster_whisper", "openwakeword", "ctranslate2", "ddgs",
+    "kokoro_onnx", "espeakng_loader", "phonemizer",
+):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas
     binaries += package_binaries
     hiddenimports += package_hidden
-
-datas += collect_data_files("piper", subdir="espeak-ng-data")
 
 analysis = Analysis(
     ["main.py"],

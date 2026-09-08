@@ -1,16 +1,17 @@
 """The models and voices you can pick from in the settings window.
 
-Sizes are the real byte counts from Hugging Face. A finished download that does
-not match is a truncated file, so it gets thrown away rather than loaded.
+Model sizes are the real byte counts from Hugging Face. A finished download
+that does not match is a truncated file, so it gets thrown away rather than
+loaded. Voices have no size because they all live in one file that ships with
+the app.
 """
 
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import paths, settings
+from . import config, paths, settings
 
 MODEL_REPO = "https://huggingface.co/unsloth/Qwen3.5-{size}-GGUF/resolve/main/{file}"
-VOICE_REPO = "https://huggingface.co/rhasspy/piper-voices/resolve/main/{path}"
 
 
 @dataclass(frozen=True)
@@ -25,12 +26,12 @@ class Model:
 
 @dataclass(frozen=True)
 class Voice:
-    key: str
+    """One of Kokoro's voices. They all live in the one file, so unlike a model
+    there is nothing to download and nothing to be the right size."""
+
+    key: str  # what Kokoro calls it
     name: str
     note: str
-    filename: str
-    url: str
-    size: int
 
 
 def _model(size: str, file: str, name: str, note: str, byte_count: int) -> Model:
@@ -44,16 +45,6 @@ def _model(size: str, file: str, name: str, note: str, byte_count: int) -> Model
     )
 
 
-def _voice(path: str, name: str, note: str, byte_count: int) -> Voice:
-    file = path.rsplit("/", 1)[-1]
-    return Voice(
-        key=file,
-        name=name,
-        note=note,
-        filename=file,
-        url=VOICE_REPO.format(path=path),
-        size=byte_count,
-    )
 
 
 MODELS = [
@@ -79,31 +70,18 @@ MODELS = [
     ),
 ]
 
+# Kokoro ships 54, most of them other languages. These are the English ones
+# worth offering. Aurix's own voice is built on Heart - the robot filter was
+# tuned against it - so the others will sound a little different under it.
 VOICES = [
-    _voice(
-        "en/en_GB/cori/high/en_GB-cori-high.onnx",
-        "Cori", "British, female. Natural, but slower to start talking.", 114219352,
-    ),
-    _voice(
-        "en/en_US/amy/medium/en_US-amy-medium.onnx",
-        "Amy", "American, female. Quick.", 63201294,
-    ),
-    _voice(
-        "en/en_US/lessac/high/en_US-lessac-high.onnx",
-        "Lessac", "American, female. Very clear, but slower to start talking.", 113895201,
-    ),
-    _voice(
-        "en/en_US/hfc_female/medium/en_US-hfc_female-medium.onnx",
-        "Hannah", "American, female. Warmer and softer, and quick.", 63201294,
-    ),
-    _voice(
-        "en/en_US/ryan/high/en_US-ryan-high.onnx",
-        "Ryan", "American, male. Slower to start talking.", 120786792,
-    ),
-    _voice(
-        "en/en_GB/alba/medium/en_GB-alba-medium.onnx",
-        "Alba", "Scottish, female. Quick.", 63201294,
-    ),
+    Voice("af_heart", "Heart", "American, female. What Aurix sounds like."),
+    Voice("af_bella", "Bella", "American, female."),
+    Voice("af_nicole", "Nicole", "American, female. Softer."),
+    Voice("af_nova", "Nova", "American, female."),
+    Voice("am_puck", "Puck", "American, male."),
+    Voice("am_fenrir", "Fenrir", "American, male. Deeper."),
+    Voice("bf_emma", "Emma", "British, female."),
+    Voice("bm_george", "George", "British, male."),
 ]
 
 
@@ -112,36 +90,37 @@ def models_folder() -> Path:
     return Path(settings.get("models_folder"))
 
 
-def voices_folder() -> Path:
-    """Voices are small enough to leave beside the app."""
-    return paths.resolve("runtime/voices")
-
-
 def model_file(model: Model) -> Path:
     return models_folder() / model.filename
 
 
-def voice_file(voice: Voice) -> Path:
-    return voices_folder() / voice.filename
+def kokoro_files() -> tuple[Path, Path]:
+    """The voice engine and the voices, which ship with the app."""
+    return paths.resolve(config.KOKORO_MODEL), paths.resolve(config.KOKORO_VOICES)
 
 
 def is_installed(item) -> bool:
-    """Installed means present and the right size."""
-    path = model_file(item) if isinstance(item, Model) else voice_file(item)
-    return path.exists() and path.stat().st_size == item.size
+    """For a model, present and the right size. Every voice is in the one file,
+    so a voice is installed exactly when that file is there."""
+    if isinstance(item, Model):
+        path = model_file(item)
+        return path.exists() and path.stat().st_size == item.size
+    return all(path.exists() for path in kokoro_files())
 
 
-def find_model(key: str) -> Model:
-    return next(model for model in MODELS if model.key == key)
+def _chosen(items, key):
+    """Whichever is set, or the first one when the setting names something that
+    is not here any more.
 
-
-def find_voice(key: str) -> Voice:
-    return next(voice for voice in VOICES if voice.key == key)
+    Upgrading from a version before Kokoro leaves a Piper voice saved in
+    settings.json, and a name nobody recognises should not stop Aurix starting.
+    """
+    return next((item for item in items if item.key == key), items[0])
 
 
 def chosen_model() -> Model:
-    return find_model(settings.get("model"))
+    return _chosen(MODELS, settings.get("model"))
 
 
 def chosen_voice() -> Voice:
-    return find_voice(settings.get("voice"))
+    return _chosen(VOICES, settings.get("voice"))
