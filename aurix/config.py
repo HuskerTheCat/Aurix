@@ -1,6 +1,6 @@
 """Default settings. Anything the user can change is overridden by settings.py."""
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 # --- Microphone ---
 MICROPHONE = None  # None means the Windows default device
