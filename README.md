@@ -1,6 +1,6 @@
 # Aurix
 
-A voice assistant that runs on your own computer.
+A silly little voice assistant.
 
 ![Aurix](docs/face-answering.png)
 
@@ -16,7 +16,7 @@ then **Run anyway**.
 
 Sits in the system tray as a blue dot.
 
-- Say **"Hey Jarvis"**, pause, then ask.
+- Say **"Hey Jarvis"**, then ask.
 - Or press **Ctrl + Alt + G**.
 - Click the tray icon for the quick panel, or **Settings** for everything else.
 
@@ -48,10 +48,6 @@ can check rather than take on trust.
 ![Models](docs/settings-model.png)
 
 ![Voices](docs/settings-voice.png)
-
-The voice is Kokoro with a vocoder over the top, so it comes out sounding like
-a robot rather than like somebody reading to you. Whichever voice you pick gets
-the same treatment.
 
 ## Building it
 
