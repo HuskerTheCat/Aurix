@@ -15,7 +15,8 @@ from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
 from aurix import (
-    audio, brain, config, paths, settings, speech, timings, tray, voice, wake
+    audio, brain, config, cores, paths, settings, speech, timings, tray, voice,
+    wake,
 )
 from aurix.audio import NoSpeechDetected, record_until_silence
 from aurix.overlay import Overlay
@@ -221,6 +222,9 @@ def main() -> None:
         return
 
     _start_logging()
+    # before anything loads, or the models end up on the slow cores and speaking
+    # runs at a fifth of the speed for the rest of the session
+    print(f"Cores: {cores.use_the_fast_ones()}")
     settings.load()
 
     app = QApplication(sys.argv)
