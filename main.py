@@ -80,8 +80,17 @@ def _say_already_running() -> None:
 def _handle_request() -> None:
     """One full listen, transcribe and answer cycle. Runs on its own thread."""
     if not _busy.acquire(blocking=False):
-        return  # already busy, ignore the extra press
+        # This used to say nothing at all. When a request wedged once, every
+        # later wake and every hotkey press landed here and vanished, the wake
+        # word stayed paused because only the finally below resumes it, and the
+        # log stopped dead at "Ready" - which looks exactly like a broken
+        # hotkey. Say so, and a stuck request is obvious next time.
+        print("  still busy with the last request, ignoring this one")
+        return
     try:
+        # nothing else is written until the words come back, and recording and
+        # transcribing are both able to hang, so mark the start
+        print("  listening...")
         signals.listening.emit()
         started = time.perf_counter()
 
