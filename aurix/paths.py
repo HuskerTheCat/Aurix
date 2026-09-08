@@ -24,6 +24,16 @@ def log_file() -> Path:
     return folder / "aurix.log"
 
 
+def previous_log_file() -> Path:
+    """The log from the run before this one.
+
+    A failure at startup used to erase its own evidence: the log is rewritten
+    every launch, so restarting to find out what went wrong was the one action
+    guaranteed to destroy the answer.
+    """
+    return log_file().parent / "aurix-previous.log"
+
+
 def llama_log() -> Path:
     """Where the model server writes its own log, next to Aurix's."""
     return log_file().parent / "llama.log"

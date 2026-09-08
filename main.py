@@ -15,8 +15,8 @@ from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
 from aurix import (
-    audio, brain, config, cores, paths, settings, speech, timings, tray, voice,
-    wake,
+    audio, brain, catalog, config, cores, paths, settings, speech, timings,
+    tray, voice, wake,
 )
 from aurix.audio import NoSpeechDetected, record_until_silence
 from aurix.overlay import Overlay
@@ -235,6 +235,10 @@ def main() -> None:
     # runs at a fifth of the speed for the rest of the session
     print(f"Cores: {cores.use_the_fast_ones()}")
     settings.load()
+    # where it thinks everything is, because models_folder is an absolute path
+    # in settings.json and goes stale the moment anything moves
+    print(f"Running from {paths.app_root()}")
+    print(f"Models in {catalog.models_folder()}")
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -313,7 +317,13 @@ class _Tee:
 
 def _start_logging() -> None:
     """Always write a log. Packaged there is no console to write to instead."""
-    stream = open(paths.log_file(), "w", encoding="utf-8", buffering=1)
+    log = paths.log_file()
+    try:
+        if log.exists():
+            log.replace(paths.previous_log_file())  # keep the run before this one
+    except OSError:
+        pass  # something has it open. Losing the old log is not worth not starting
+    stream = open(log, "w", encoding="utf-8", buffering=1)
     if getattr(sys, "frozen", False):
         sys.stdout = sys.stderr = stream
         return
