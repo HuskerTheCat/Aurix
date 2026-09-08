@@ -35,7 +35,10 @@ def load() -> None:
     if not path.exists():
         return
 
-    stored = json.loads(path.read_text(encoding="utf-8"))
+    # utf-8-sig, because anything on Windows that writes this file by hand -
+    # Notepad, PowerShell - puts a byte order mark on the front, and plain
+    # utf-8 then refuses to read it and Aurix will not start
+    stored = json.loads(path.read_text(encoding="utf-8-sig"))
     _values.update({key: stored[key] for key in DEFAULTS if key in stored})
 
 
