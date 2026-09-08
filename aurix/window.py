@@ -43,6 +43,21 @@ def _size(byte_count: int) -> str:
     return f"{byte_count / 1_000_000:.0f} MB"
 
 
+def _without_your_name(path) -> str:
+    """The folder, with the home directory written the short way.
+
+    This window is the thing people screenshot when something is wrong, and
+    there is no reason to put their username in it. Longest match first, since
+    LOCALAPPDATA lives inside USERPROFILE.
+    """
+    text = str(path)
+    for variable in ("LOCALAPPDATA", "APPDATA", "USERPROFILE"):
+        root = os.environ.get(variable)
+        if root and text.lower().startswith(root.lower()):
+            return f"%{variable}%" + text[len(root):]
+    return text
+
+
 def _bigger_model_verdict(card: dict) -> str | None:
     """Whether a bigger model would fit, said plainly instead of in numbers.
 
@@ -579,7 +594,9 @@ class Window(QWidget):
 
         folder = catalog.models_folder()
         free = download.free_space(folder)
-        self._folder_line.setText(f"Kept in {folder}  -  {_size(free)} free")
+        self._folder_line.setText(
+            f"Kept in {_without_your_name(folder)}  -  {_size(free)} free"
+        )
         self._status.setText(self._status_text())
 
     def _status_text(self) -> str:

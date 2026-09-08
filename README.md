@@ -45,7 +45,9 @@ and see what it has been up to - including the last thing it looked up, so the
 claim that nothing but a search query ever leaves the machine is something you
 can check rather than take on trust.
 
-![Settings](docs/settings-voice.png)
+![Models](docs/settings-model.png)
+
+![Voices](docs/settings-voice.png)
 
 The voice is Kokoro with a vocoder over the top, so it comes out sounding like
 a robot rather than like somebody reading to you. Whichever voice you pick gets
