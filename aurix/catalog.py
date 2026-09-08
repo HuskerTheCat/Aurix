@@ -79,7 +79,7 @@ VOICES = [
     Voice("af_nicole", "Nicole", "American, female. Softer."),
     Voice("af_nova", "Nova", "American, female."),
     Voice("am_puck", "Puck", "American, male."),
-    Voice("am_fenrir", "Fenrir", "American, male. Deeper."),
+    Voice("am_fenrir", "Fenrir", "American, male."),
     Voice("bf_emma", "Emma", "British, female."),
     Voice("bm_george", "George", "British, male."),
 ]

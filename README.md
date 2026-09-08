@@ -2,7 +2,7 @@
 
 A voice assistant that runs on your own computer.
 
-![Aurix](docs/orb-done.png)
+![Aurix](docs/face-answering.png)
 
 ## Install
 
@@ -20,12 +20,18 @@ Sits in the system tray as a blue dot.
 - Or press **Ctrl + Alt + G**.
 - Click the tray icon for the quick panel, or **Settings** for everything else.
 
+![Listening](docs/face-listening.png)
+
+It works out when you have actually finished talking instead of counting a
+second of quiet, so stopping to think mid-sentence no longer cuts you off.
+
 As well as answering questions it can do a few things:
 
 - *"Play Take On Me"*, *"play the rock classics playlist"*, *"play the Rumours
   album"* - Spotify, no account needed, the song is found by searching the web.
   It puts Spotify back where it found it, so if it was closed or minimised the
-  music starts without the window taking over the screen.
+  music starts without the window taking over the screen. Anything you have
+  played before starts straight away, since it remembers what it found.
 - *"Pause"*, *"skip this song"*, *"go back"* - works with any music player.
 - *"Open YouTube"*, *"pull up the Wikipedia page for the Eiffel Tower"* -
   anything it does not recognise it searches for and opens the top result.
@@ -34,25 +40,35 @@ As well as answering questions it can do a few things:
 
 ![Panel](docs/panel.png)
 
-Settings is where you swap the model for a bigger one, change the voice, and
-see whether your graphics card is actually being used.
+Settings is where you swap the model for a bigger one, pick a different voice,
+and see what it has been up to - including the last thing it looked up, so the
+claim that nothing but a search query ever leaves the machine is something you
+can check rather than take on trust.
 
-![Settings](docs/settings.png)
+![Settings](docs/settings-voice.png)
+
+The voice is Kokoro with a vocoder over the top, so it comes out sounding like
+a robot rather than like somebody reading to you. Whichever voice you pick gets
+the same treatment.
 
 ## Building it
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python main.py
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe main.py
 ```
 
 The models live in `runtime/`, which isn't in the repo. To build the installer:
 
 ```powershell
-.venv\Scripts\pyinstaller --noconfirm aurix.spec
+.venv\Scripts\python.exe -m PyInstaller --noconfirm aurix.spec
 "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer.iss
 ```
+
+Run the venv's tools as modules like that. The `.exe` shims hardcode the path
+the venv was built at, so if it ever moves they exit with an error code and
+print nothing at all.
 
 Built on [faster-whisper](https://github.com/SYSTRAN/faster-whisper),
 [openWakeWord](https://github.com/dscripka/openWakeWord),

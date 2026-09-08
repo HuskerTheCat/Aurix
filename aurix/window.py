@@ -570,10 +570,12 @@ class Window(QWidget):
     # --- keeping the screen honest ---
 
     def _refresh(self) -> None:
+        # through the catalog, not the raw setting - an upgraded install still
+        # names a Piper voice, and comparing against that highlighted nothing
         for model in catalog.MODELS:
-            self._cards[model.key].refresh(settings.get("model"))
+            self._cards[model.key].refresh(catalog.chosen_model().key)
         for item in catalog.VOICES:
-            self._cards[item.key].refresh(settings.get("voice"))
+            self._cards[item.key].refresh(catalog.chosen_voice().key)
 
         folder = catalog.models_folder()
         free = download.free_space(folder)
