@@ -1,9 +1,17 @@
-"""Microphone capture that stops on its own when you stop talking."""
+"""Microphone capture that stops on its own when you stop talking.
+
+Whether a block is speech comes from Silero, the same voice model openWakeWord
+already ships, not from how loud it is. Loudness cannot tell a voice from a
+fan, so the room had to be measured at startup and any noise at that moment set
+a bad threshold for the rest of the session. A voice model needs no measuring
+and does not care how quiet the room is.
+"""
 
 from collections import deque
 
 import numpy as np
 import sounddevice as sd
+from openwakeword.vad import VAD
 
 from . import config, settings
 
@@ -12,12 +20,24 @@ class NoSpeechDetected(Exception):
     """Nobody spoke before the timeout ran out."""
 
 
-_threshold: float | None = None
+_vad: VAD | None = None
+
+
+def load() -> None:
+    """Load the voice model, once, at startup."""
+    global _vad
+    _vad = VAD()
 
 
 def _level(block: np.ndarray) -> float:
-    """Loudness of one block of audio, 0.0 to 1.0."""
+    """Loudness of one block, 0.0 to 1.0. Only used to make the face move."""
     return float(np.sqrt(np.mean(np.square(block))))
+
+
+def _is_speech(block: np.ndarray) -> bool:
+    """Whether a block sounds like somebody talking. Silero wants 16 bit PCM."""
+    pcm = (block.flatten() * 32767).astype(np.int16)
+    return _vad.predict(pcm, frame_size=len(pcm)) >= config.VAD_THRESHOLD
 
 
 def microphones() -> list[tuple[int, str]]:
@@ -47,44 +67,22 @@ def find_microphone() -> int | None:
     return None
 
 
-def _measure_room(stream, block_frames: int) -> float:
-    """Sample the room so we know what background noise sounds like."""
-    block_count = int(config.NOISE_CALIBRATION_SEC / config.BLOCK_SECONDS)
-    levels = [_level(stream.read(block_frames)[0]) for _ in range(block_count)]
-    return float(np.median(levels))
-
-
-def calibrate() -> float:
-    """Measure the room once at startup, so no request pays for it later."""
-    global _threshold
-    block_frames = int(config.SAMPLE_RATE * config.BLOCK_SECONDS)
-
-    with sd.InputStream(
-        samplerate=config.SAMPLE_RATE,
-        channels=config.CHANNELS,
-        dtype="float32",
-        blocksize=block_frames,
-        device=find_microphone(),
-    ) as stream:
-        room = _measure_room(stream, block_frames)
-
-    _threshold = max(room * config.SPEECH_THRESHOLD_MULTIPLIER, config.MIN_SPEECH_LEVEL)
-    return _threshold
-
-
 def record_until_silence(on_level=None) -> np.ndarray:
     """Record from the microphone until the speaker goes quiet.
 
     on_level, if given, is called with the loudness of every block, so the
-    orb can breathe along with your voice.
+    face can move along with your voice.
 
     Returns mono float32 audio at config.SAMPLE_RATE.
     Raises NoSpeechDetected if nobody speaks in time.
     """
-    if _threshold is None:
-        raise RuntimeError("audio.calibrate() must be called before recording")
+    if _vad is None:
+        raise RuntimeError("audio.load() must be called before recording")
 
-    threshold = _threshold
+    # the model remembers what it just heard, and the tail of the last question
+    # would otherwise count as somebody already talking
+    _vad.reset_states()
+
     block_frames = int(config.SAMPLE_RATE * config.BLOCK_SECONDS)
     preroll_blocks = int(config.PREROLL_SEC / config.BLOCK_SECONDS)
 
@@ -104,26 +102,24 @@ def record_until_silence(on_level=None) -> np.ndarray:
         while elapsed < config.MAX_RECORDING_SEC:
             block, _overflow = stream.read(block_frames)
             elapsed += config.BLOCK_SECONDS
-            level = _level(block)
             if on_level is not None:
-                on_level(level)
-            loud = level > threshold
+                on_level(_level(block))
+            talking = _is_speech(block)
 
             if not speaking:
                 preroll.append(block)
-                if loud:
+                if talking:
                     speaking = True
                     collected.extend(preroll)
                 elif elapsed > config.SPEECH_START_TIMEOUT_SEC:
                     raise NoSpeechDetected(
-                        f"nothing louder than {threshold:.4f} in "
-                        f"{config.SPEECH_START_TIMEOUT_SEC:.0f}s"
+                        f"no voice in {config.SPEECH_START_TIMEOUT_SEC:.0f}s"
                     )
                 continue
 
             collected.append(block)
 
-            if loud:
+            if talking:
                 silence_for = 0.0
             else:
                 silence_for += config.BLOCK_SECONDS

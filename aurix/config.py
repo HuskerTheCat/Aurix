@@ -12,9 +12,7 @@ BLOCK_SECONDS = 0.03
 SILENCE_HANGOVER_SEC = 1.0
 MAX_RECORDING_SEC = 15.0
 SPEECH_START_TIMEOUT_SEC = 5.0
-NOISE_CALIBRATION_SEC = 0.4
-SPEECH_THRESHOLD_MULTIPLIER = 3.0
-MIN_SPEECH_LEVEL = 0.004
+VAD_THRESHOLD = 0.5  # how sure Silero has to be that a block is a voice
 PREROLL_SEC = 0.3
 
 # --- Speech recognition ---
@@ -29,7 +27,7 @@ WHISPER_BEAM = 5
 # times the size did worse and took three times as long.
 SPEECH_HINT = (
     "Aurix, Spotify, YouTube, Wikipedia, GitHub, Reddit, Twitch, Amazon, "
-    "Google Maps, Arduino, playlist, queue, volume, pause, resume, skip, "
+    "Google Maps, Arduino, playlist, album, queue, volume, pause, resume, skip, "
     "weather, forecast."
 )
 
@@ -84,22 +82,28 @@ WEATHER_TIMEOUT_SEC = 10
 DECISION_PROMPT = (
     "Today is {today}. Decide what to do with the request below.\n"
     "Reply with exactly one line and nothing else, in one of these forms:\n"
-    "  PLAY: <song, artist or playlist>  - start music playing now\n"
+    "  PLAY: <song, artist, album or playlist> - start music playing now\n"
     "  QUEUE: <song>                     - play it after the current one\n"
     "  CONTROL: <pause|resume|next|back|restart> - control what is playing\n"
     "  VOLUME: <up|down|mute|a number>   - change how loud it is\n"
     "  OPEN: <site or page>              - open a web page\n"
+    "  LAUNCH: <program>                 - start a program on this computer\n"
     "  TIME: <place>                     - what time it is somewhere\n"
     "  WEATHER: <place>                  - weather, temperature or forecast\n"
     "  SEARCH: <query>                   - answering needs looking up\n"
     "  DIRECT                            - answering does not\n\n"
-    "The first five are for being told to do something. Use them whenever the "
+    "The first six are for being told to do something. Use them whenever the "
     "request is an instruction rather than a question. A question about music "
     "or a website is still SEARCH or DIRECT.\n"
     "QUEUE only when asked to add something on the end or play it next. "
     "Otherwise use PLAY.\n"
     "CONTROL back means the previous song, restart means this song again.\n"
+    "Keep the word album or playlist in the name - it is how the right kind of "
+    "music gets looked for.\n"
     "Searching a named website is OPEN, not SEARCH.\n"
+    "OPEN is for websites. LAUNCH is for programs installed on this computer - "
+    "Discord, Steam, a game, an editor. YouTube, Wikipedia, Google, Reddit and "
+    "anything with a domain name are websites, so they are OPEN.\n"
     "Take names as given, even when they look wrong or mean nothing - speech "
     "gets misheard and the song or page is looked up afterwards. Never turn "
     "'play something' into SEARCH just because you do not recognise the title. "
@@ -117,6 +121,8 @@ DECISION_PROMPT = (
     "  PLAY: Bohemian Rhapsody\n"
     "  Put on my discover weekly playlist\n"
     "  PLAY: discover weekly playlist\n"
+    "  Play the Rumours album\n"
+    "  PLAY: Rumours album\n"
     "  Play the note we met on Spotify\n"
     "  PLAY: the note we met\n"
     "  Add Thunderstruck to the queue\n"
@@ -147,6 +153,10 @@ DECISION_PROMPT = (
     "  OPEN: bbc.co.uk\n"
     "  Search YouTube for lofi hip hop\n"
     "  OPEN: youtube lofi hip hop\n"
+    "  Open Discord\n"
+    "  LAUNCH: Discord\n"
+    "  Start Steam\n"
+    "  LAUNCH: Steam\n"
     "  What time is it in Israel?\n"
     "  TIME: Israel\n"
     "  What time is it?\n"

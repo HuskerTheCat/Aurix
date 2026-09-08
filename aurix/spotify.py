@@ -7,23 +7,38 @@ uses, and the resulting spotify: link is handed to the desktop app.
 What it is doing is read off its window title, which is the song while it plays
 and just "Spotify Premium" while it does not. That is the only way to tell
 playing from paused, and without it pause and play are the same key.
+
+Everything ends up a track link, because that is the only kind that starts
+playing on its own. An album or playlist is turned into its first track and
+Spotify carries on through the rest by itself.
+
+Opening a link always brings Spotify to the front, so where its window was is
+noted first and put back afterwards. Asking for a song should not take over the
+screen.
 """
 
 import ctypes
+import json
 import os
 import re
 import threading
 import time
 
+import httpx
 from ddgs import DDGS
 
-from . import keys
+from . import keys, paths, search
 
 _SPOTIFY_ID = r"([A-Za-z0-9]{22})"
 _LINKS = {
     "track": re.compile(rf"open\.spotify\.com/(?:intl-[a-z-]+/)?track/{_SPOTIFY_ID}"),
+    "album": re.compile(rf"open\.spotify\.com/(?:intl-[a-z-]+/)?album/{_SPOTIFY_ID}"),
     "playlist": re.compile(rf"open\.spotify\.com/(?:intl-[a-z-]+/)?playlist/{_SPOTIFY_ID}"),
 }
+
+# The word that picks the kind stays in the request until the search, since "the
+# Rumours album" should find the album and "Rumours" on its own the song.
+_KINDS = re.compile(r"\b(playlists?|albums?)\b", re.IGNORECASE)
 
 # Titles Spotify shows when nothing is playing.
 _IDLE = {"spotify", "spotify premium", "spotify free"}
@@ -31,8 +46,9 @@ _IDLE = {"spotify", "spotify premium", "spotify free"}
 _START_TIMEOUT_SEC = 8.0
 _POLL_SEC = 2.0
 _SETTLE_SEC = 1.0
+_PAGE_TIMEOUT_SEC = 10.0
 
-_queue: list[tuple[str, str]] = []
+_queue: list[tuple[str, str]] = []  # track id, title
 _lock = threading.Lock()
 _playing_ours = ""  # the title of the track we started, so we know when it ends
 _watcher: threading.Thread | None = None
@@ -43,16 +59,17 @@ _watcher: threading.Thread | None = None
 
 def state() -> tuple[str, str]:
     """Returns ('playing'|'paused'|'closed', whatever is playing)."""
-    title = _window_title()
-    if title is None:
+    window = _window()
+    if window is None:
         return "closed", ""
+    title = window[1]
     if title.strip().lower() in _IDLE:
         return "paused", ""
     return "playing", title.strip()
 
 
-def _window_title():
-    """Spotify's window title, or None when it is not running."""
+def _window():
+    """Spotify's window and its title, or None when it is not running."""
     user32 = ctypes.windll.user32
     found = []
 
@@ -66,7 +83,7 @@ def _window_title():
         if length:
             text = ctypes.create_unicode_buffer(length + 1)
             user32.GetWindowTextW(window, text, length + 1)
-            found.append(text.value)
+            found.append((window, text.value))
         return True
 
     user32.EnumWindows(look, None)
@@ -96,6 +113,26 @@ def _process_name(window) -> str:
         ctypes.windll.kernel32.CloseHandle(handle)
 
 
+# --- keeping it out of the way ---
+
+_SW_MINIMIZE = 6
+
+
+def _out_of_the_way() -> bool:
+    """Whether Spotify is minimized or shut, so it can be put back that way."""
+    window = _window()
+    if window is None:
+        return True
+    return bool(ctypes.windll.user32.IsIconic(window[0]))
+
+
+def _put_away() -> None:
+    """Minimize Spotify. Windows then hands focus back to whatever was in front."""
+    window = _window()
+    if window is not None:
+        ctypes.windll.user32.ShowWindow(window[0], _SW_MINIMIZE)
+
+
 # --- playing things ---
 
 
@@ -115,11 +152,12 @@ def queue(request: str) -> str:
     if found is None:
         return f"I could not find {request} on Spotify."
 
+    _identifier, title = found
     with _lock:
         _queue.append(found)
         waiting = len(_queue)
     _start_watching()
-    return f"Added {found[1]} to the queue." + (
+    return f"Added {title} to the queue." + (
         f" It is {waiting} songs away." if waiting > 1 else ""
     )
 
@@ -130,13 +168,15 @@ def _start(request: str) -> str:
         return f"I could not find {request} on Spotify."
 
     identifier, title = found
-    kind = "playlist" if "playlist" in request.lower() else "track"
-    _launch(kind, identifier)
+    _launch(identifier)
+    if not _playing_ours:
+        # it never started, so whatever was remembered for this is no good
+        _forget(_as_asked(request))
     return f"Playing {title}."
 
 
-def _launch(kind: str, identifier: str) -> None:
-    """Open a spotify: link and wait until it is really playing.
+def _launch(identifier: str) -> None:
+    """Open a track and wait until it is really playing.
 
     Spotify ignores the link entirely while it is already playing something, so
     it has to be stopped first. That was why asking for a song mid-playlist
@@ -148,14 +188,67 @@ def _launch(kind: str, identifier: str) -> None:
         keys.tap(keys.PLAY_PAUSE)
         time.sleep(_SETTLE_SEC)
 
-    os.startfile(f"spotify:{kind}:{identifier}")
+    was_out_of_the_way = _out_of_the_way()
+    os.startfile(f"spotify:track:{identifier}")
     _playing_ours = _settled_title()
+
+    if was_out_of_the_way:
+        _put_away()
 
 
 def _look_up(request: str):
-    kind = "playlist" if "playlist" in request.lower() else "track"
-    name = re.sub(r"\bplaylists?\b", "", request, flags=re.IGNORECASE).strip()
-    return _find(name, kind)
+    """The track to play for a request - (id, title) - or None.
+
+    Always a track, even for an album or a playlist, because a track link is the
+    only one that starts playing by itself. Anything found once is remembered,
+    so asking for it again skips the search.
+    """
+    asked = _as_asked(request)
+    remembered = _recall(asked)
+    if remembered is not None:
+        return remembered
+
+    kind = _kind_of(request)
+    name = re.sub(r"\s+", " ", _KINDS.sub("", request)).strip()
+    search.note_lookup(f"{name} on Spotify")
+
+    found = _find(name, kind)
+    if found is None:
+        return None
+
+    identifier, title = found
+    if kind != "track":
+        identifier = _first_track(kind, identifier)
+        if identifier is None:
+            return None
+
+    _remember(asked, (identifier, title))
+    return identifier, title
+
+
+def _kind_of(request: str) -> str:
+    """Which of Spotify's three kinds of link is being asked for."""
+    found = _KINDS.search(request)
+    if found is None:
+        return "track"
+    return "playlist" if found.group(1).lower().startswith("playlist") else "album"
+
+
+def _first_track(kind: str, identifier: str):
+    """The first track of an album or playlist, off its public embed page.
+
+    Opening an album or playlist link only shows the page - it sits there and
+    plays nothing. Starting its first track instead gets the whole thing, since
+    Spotify carries on through the rest in order by itself.
+    """
+    page = httpx.get(
+        f"https://open.spotify.com/embed/{kind}/{identifier}",
+        follow_redirects=True,
+        timeout=_PAGE_TIMEOUT_SEC,
+    )
+    page.raise_for_status()
+    found = re.search(rf"spotify:track:{_SPOTIFY_ID}", page.text)
+    return found.group(1) if found else None
 
 
 def _settled_title() -> str:
@@ -200,7 +293,7 @@ def _watch() -> None:
             if not _queue:  # cleared while we were waiting
                 return
             identifier, _title = _queue.pop(0)
-        _launch("track", identifier)
+        _launch(identifier)
 
 
 def skip() -> str:
@@ -214,7 +307,7 @@ def skip() -> str:
         keys.tap(keys.NEXT)
         return "Skipped."
 
-    _launch("track", identifier)
+    _launch(identifier)
     return f"Skipped to {title}."
 
 
@@ -226,6 +319,58 @@ def queued() -> list[str]:
 def forget_queue() -> None:
     with _lock:
         _queue.clear()
+
+
+# --- remembering what was found ---
+#
+# The web search is the slow part of playing a song, a second or two before any
+# sound comes out. People replay the same songs, so what a request turned out to
+# mean is kept and the search skipped the next time it is asked for.
+
+_CACHE_LIMIT = 500
+_remembered: dict[str, list] | None = None
+
+
+def _cache_file():
+    return paths.log_file().parent / "music.json"
+
+
+def _cache() -> dict:
+    """The remembered requests, read from disk the first time one is needed."""
+    global _remembered
+    if _remembered is None:
+        path = _cache_file()
+        _remembered = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    return _remembered
+
+
+def _as_asked(request: str) -> str:
+    """The form a request is remembered under, so case and spacing do not matter."""
+    return re.sub(r"\s+", " ", request.strip().lower())
+
+
+def _recall(asked: str):
+    found = _cache().get(asked)
+    return tuple(found) if found else None
+
+
+def _remember(asked: str, found: tuple) -> None:
+    remembered = _cache()
+    remembered.pop(asked, None)  # so replaying something moves it back to the end
+    remembered[asked] = list(found)
+    for stale in list(remembered)[:-_CACHE_LIMIT]:
+        del remembered[stale]
+    _write_cache()
+
+
+def _forget(asked: str) -> None:
+    """Drop a link that did not play, so it gets looked up fresh next time."""
+    if _cache().pop(asked, None) is not None:
+        _write_cache()
+
+
+def _write_cache() -> None:
+    _cache_file().write_text(json.dumps(_remembered), encoding="utf-8")
 
 
 # --- finding things ---
@@ -252,7 +397,7 @@ def _find(name: str, kind: str):
 # Given the choice, the plain studio recording is the one somebody means.
 _QUALIFIERS = (
     "live", "remaster", "remix", "karaoke", "cover", "instrumental",
-    "acoustic", "edit", "version", "demo", "tribute",
+    "acoustic", "edit", "version", "demo", "tribute", "deluxe",
 )
 
 
@@ -281,8 +426,12 @@ def _closeness(wanted: str, title: str) -> int:
 def _tidy(title: str) -> str:
     """Search results describe themselves oddly. Cut it back to song and artist."""
     title = title.split("|")[0]
+    # some results run two songs together with an ellipsis, and the whole lot
+    # gets read out - worse now that a title is kept rather than found again
+    title = re.split(r"\s*\.\.\.", title)[0]
     title = re.sub(r"\s*-\s*song and lyrics by\s*", " by ", title, flags=re.IGNORECASE)
     title = re.sub(r"\s*-\s*songs? by\s*", " by ", title, flags=re.IGNORECASE)
+    title = re.sub(r"\s*-\s*albums? by\s*", " by ", title, flags=re.IGNORECASE)
     title = re.sub(r"\s*-\s*playlist by\s*", " by ", title, flags=re.IGNORECASE)
     title = re.sub(r"\s*[-|]\s*Spotify\s*$", "", title, flags=re.IGNORECASE)
     title = re.sub(r"\s+", " ", title).strip(" -")

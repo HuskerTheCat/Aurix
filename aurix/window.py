@@ -3,6 +3,7 @@
 import os
 import shutil
 import threading
+import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -22,17 +23,68 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import audio, brain, catalog, config, download, paths, settings, theme, voice
+from . import (
+    audio, brain, catalog, config, download, paths, search, settings, theme,
+    timings, voice,
+)
 from .switch import Switch
 
 SAMPLE = "This is how I sound. Ask me anything."
 HEADER = 52  # the strip at the top you can drag the window by
+
+# Left on the card for the desktop and everything else, so a model that fits by
+# a hair is not called a fit.
+CARD_HEADROOM_MB = 512
 
 
 def _size(byte_count: int) -> str:
     if byte_count >= 1_000_000_000:
         return f"{byte_count / 1_000_000_000:.1f} GB"
     return f"{byte_count / 1_000_000:.0f} MB"
+
+
+def _bigger_model_verdict(card: dict) -> str | None:
+    """Whether a bigger model would fit, said plainly instead of in numbers.
+
+    What this model actually cost on this card is known, so the guess for a
+    bigger one is scaled from that rather than from a rule of thumb.
+    """
+    if not card.get("card_mb") or not card.get("vram_mb"):
+        return None
+
+    chosen = catalog.chosen_model()
+    bigger = sorted(
+        (model for model in catalog.MODELS if model.size > chosen.size),
+        key=lambda model: model.size,
+    )
+    if not bigger:
+        return "This is the biggest model on the list, so there is nowhere to go up."
+
+    per_byte = card["vram_mb"] / (chosen.size / 1_048_576)
+    room = card["card_mb"] - CARD_HEADROOM_MB
+    fits = [model for model in bigger if (model.size / 1_048_576) * per_byte <= room]
+
+    if not fits:
+        spare = card["card_mb"] - card["vram_mb"]
+        return f"No room for a bigger model - about {spare:.0f} MB spare on the card."
+    return f"Your card has room for {fits[-1].name}."
+
+
+def _last_lookup_line() -> str:
+    """The last thing that left this machine, so the privacy claim is checkable."""
+    looked_up = search.last_lookup()
+    if looked_up is None:
+        return "Nothing has left this machine this session."
+
+    query, when = looked_up
+    ago = time.time() - when
+    if ago < 5:
+        since = "just now"
+    elif ago < 90:
+        since = f"{ago:.0f} seconds ago"
+    else:
+        since = f"{ago / 60:.0f} minutes ago"
+    return f'Last thing looked up, {since}: "{query}"'
 
 
 class Card(QFrame):
@@ -552,6 +604,14 @@ class Window(QWidget):
                     using += f" of {card['card_mb'] / 1024:.1f} GB"
                 lines.append(f"Video memory: {using}")
 
+            verdict = _bigger_model_verdict(card)
+            if verdict is not None:
+                lines.append(verdict)
+
+        memory = brain.memory_mb()
+        if memory is not None:
+            lines.append(f"Memory in use right now: {memory / 1024:.1f} GB")
+
         last = brain.last_answer()
         if last:
             speed = last["words"] / last["seconds"]
@@ -563,6 +623,17 @@ class Window(QWidget):
                 lines.append(f"It looked that one up first ({last['looked_up']}).")
         else:
             lines.append("Last answer: nothing asked yet")
+
+        took = timings.last()
+        if took:
+            lines.append(
+                f"Silence before it spoke: {took['quiet']:.2f}s "
+                f"(heard you in {took['transcribe']:.2f}s, "
+                f"answer written in {took['written']:.2f}s)"
+            )
+
+        lines.append("")
+        lines.append(_last_lookup_line())
 
         lines.append("")
         lines.append(f"Model: {catalog.chosen_model().name} - {settings.get('model')}")

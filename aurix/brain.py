@@ -6,6 +6,7 @@ answer itself. Asked together, a 4B model volunteers a search only about half
 the time.
 """
 
+import ctypes
 import datetime
 import json
 import re
@@ -15,7 +16,7 @@ import time
 
 import httpx
 
-from . import actions, catalog, config, paths, search, spotify
+from . import actions, catalog, config, paths, programs, search, spotify
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -129,6 +130,49 @@ def hardware() -> dict:
     return dict(_hardware)
 
 
+class _MemoryCounters(ctypes.Structure):
+    _fields_ = [
+        ("cb", ctypes.c_ulong),
+        ("PageFaultCount", ctypes.c_ulong),
+        ("PeakWorkingSetSize", ctypes.c_size_t),
+        ("WorkingSetSize", ctypes.c_size_t),
+        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+        ("PagefileUsage", ctypes.c_size_t),
+        ("PeakPagefileUsage", ctypes.c_size_t),
+    ]
+
+
+def memory_mb() -> float | None:
+    """What the model server is using right now, rather than when it loaded.
+
+    The startup numbers come out of its log and never move. This is the live
+    figure, which is the one worth seeing while it is busy answering.
+    """
+    if _process is None:
+        return None
+
+    query_limited_information = 0x1000
+    vm_read = 0x0010
+    handle = ctypes.windll.kernel32.OpenProcess(
+        query_limited_information | vm_read, False, _process.pid
+    )
+    if not handle:
+        return None
+    try:
+        counters = _MemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        if not ctypes.windll.psapi.GetProcessMemoryInfo(
+            handle, ctypes.byref(counters), counters.cb
+        ):
+            return None
+        return counters.WorkingSetSize / 1024 / 1024
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)
+
+
 def last_answer() -> dict:
     """Words and seconds from the most recent answer."""
     return dict(_last_answer)
@@ -210,7 +254,8 @@ def _route(question: str) -> tuple[str, str]:
     upper = line.upper()
 
     for verb in (
-        "PLAY", "QUEUE", "CONTROL", "VOLUME", "OPEN", "TIME", "WEATHER", "SEARCH"
+        "PLAY", "QUEUE", "CONTROL", "VOLUME", "OPEN", "LAUNCH", "TIME", "WEATHER",
+        "SEARCH",
     ):
         if upper.startswith(f"{verb}:"):
             argument = line[len(verb) + 1 :].strip().strip('"')
@@ -230,6 +275,7 @@ _DOING = {
     "control": (actions.control, False),
     "volume": (actions.volume, False),
     "open": (actions.open_page, False),
+    "launch": (programs.launch, False),
     # straight off the clock - asked through the model it used to claim it had
     # no way of knowing, or answer from the weather, which has no time in it
     "time": (search.local_time, False),

@@ -22,13 +22,15 @@ Sits in the system tray as a blue dot.
 
 As well as answering questions it can do a few things:
 
-- *"Play Take On Me"*, *"play the rock classics playlist"* - Spotify, no
-  account needed, the song is found by searching the web.
+- *"Play Take On Me"*, *"play the rock classics playlist"*, *"play the Rumours
+  album"* - Spotify, no account needed, the song is found by searching the web.
+  It puts Spotify back where it found it, so if it was closed or minimised the
+  music starts without the window taking over the screen.
 - *"Pause"*, *"skip this song"*, *"go back"* - works with any music player.
 - *"Open YouTube"*, *"pull up the Wikipedia page for the Eiffel Tower"* -
   anything it does not recognise it searches for and opens the top result.
-
-It only ever opens web links and Spotify. It will not run a program.
+- *"Open Discord"*, *"start Steam"* - programs you already have. It only knows
+  what is in your Start Menu, and it will not open a shell or a system tool.
 
 ![Panel](docs/panel.png)
 

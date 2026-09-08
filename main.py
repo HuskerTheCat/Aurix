@@ -14,7 +14,9 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
-from aurix import audio, brain, config, paths, settings, speech, tray, voice, wake
+from aurix import (
+    audio, brain, config, paths, settings, speech, timings, tray, voice, wake
+)
 from aurix.audio import NoSpeechDetected, record_until_silence
 from aurix.overlay import Overlay
 from aurix.panel import Panel
@@ -134,6 +136,13 @@ def _handle_request() -> None:
 
         signals.answer_done.emit()  # after speaking, so the orb stays up
         talking_from = speech_out.started_at or spoken
+        timings.record(
+            listen=recorded - started,
+            transcribe=transcribed - recorded,
+            quiet=talking_from - transcribed,
+            talking=spoken - talking_from,
+            written=finished - transcribed,
+        )
         print(
             f"  listen {recorded - started:.1f}s"
             f"  |  transcribe {transcribed - recorded:.2f}s"
@@ -183,6 +192,9 @@ def _load() -> None:
     speech.load()
     speech.warm_up()
 
+    print("Loading the voice detector...")
+    audio.load()
+
     print("Loading the voice...")
     voice.load()
     voice.warm_up()
@@ -191,9 +203,6 @@ def _load() -> None:
     started = time.perf_counter()
     brain.start()
     print(f"  ready in {time.perf_counter() - started:.1f}s")
-
-    print("Measuring the room, stay quiet for a moment...")
-    print(f"Speech threshold set to {audio.calibrate():.5f}")
 
     _listener = wake.Listener(on_wake=_trigger)
     _listener.start()

@@ -1,8 +1,8 @@
 """Doing things on the computer: opening pages, and the media keys.
 
-The only two things Aurix will ever launch are a web link and Spotify. It never
-runs a program the model names, so a misheard sentence cannot start anything.
-Music itself lives in spotify.py.
+Web links only. Music is in spotify.py, and starting an installed program is in
+programs.py - which is the only way a program ever gets run, and only ever one
+that is already in the Start Menu.
 """
 
 import re
@@ -10,7 +10,7 @@ import webbrowser
 from urllib.parse import quote_plus
 
 from ddgs import DDGS
-from . import keys, spotify
+from . import keys, search, spotify
 
 _WEB_ADDRESS = re.compile(r"\b((?:https?://)?[\w-]+(?:\.[\w-]+)+(?:/\S*)?)")
 
@@ -163,6 +163,7 @@ def _name_of(url: str) -> str:
 
 
 def _first_result(query: str):
+    search.note_lookup(query)
     for result in DDGS().text(query, max_results=3):
         link = result.get("href") or ""
         if link.startswith(("http://", "https://")):
