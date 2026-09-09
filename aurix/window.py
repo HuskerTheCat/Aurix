@@ -346,9 +346,13 @@ class Window(QWidget):
         column.addLayout(row)
 
         self._sensitivity, self._sensitivity_label = self._dial(
-            "Wake word sensitivity", 5, 100, int(settings.get("wake_threshold") * 100),
-            lambda value: settings.put("wake_threshold", value / 100),
-            lambda value: f"Wake word sensitivity - {100 - value}%",
+            # the slider is sensitivity, which is the inverse of the threshold. It used
+            # to move the handle by the threshold while labelling it as the
+            # sensitivity, so dragging right made it less sensitive while the
+            # number went down. Invisible at 0.5, obvious at anything else.
+            "Wake word sensitivity", 5, 95, 100 - int(settings.get("wake_threshold") * 100),
+            lambda value: settings.put("wake_threshold", (100 - value) / 100),
+            lambda value: f"Wake word sensitivity - {value}%",
         )
         column.addWidget(self._sensitivity_label)
         column.addWidget(self._sensitivity)
