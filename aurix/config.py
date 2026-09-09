@@ -1,6 +1,6 @@
 """Default settings. Anything the user can change is overridden by settings.py."""
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 
 # --- Microphone ---
 MICROPHONE = None  # None means the Windows default device
@@ -190,9 +190,12 @@ VOICE = "af_heart"
 KOKORO_LANGUAGE = "en-us"
 
 # --- The wake word ---
-WAKE_MODEL = "runtime/wakeword/hey_jarvis_v0.1.onnx"
-WAKE_WORD_NAME = "Hey Jarvis"  # change with WAKE_MODEL
-WAKE_THRESHOLD = 0.5
+WAKE_MODEL = "runtime/wakeword/hey_aurix.onnx"
+WAKE_WORD_NAME = "Hey Aurix"  # change with WAKE_MODEL
+# Out of hey_aurix_eval.json, not guessed. Trained on 17.85 hours: 0.11 gets
+# 98.2% of them with about one false wake every six hours, and 0.5 gets 92.5%
+# with none at all. Tunable live on the Audio tab if it fires too eagerly.
+WAKE_THRESHOLD = 0.11
 WAKE_CHUNK = 1280
 WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
 WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"

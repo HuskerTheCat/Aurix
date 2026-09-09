@@ -16,7 +16,7 @@ then **Run anyway**.
 
 Sits in the system tray as a blue dot.
 
-- Say **"Hey Jarvis"**, then ask.(Jarvis is still a temporary wake word until I can train "Aurix")
+- Say **"Hey Aurix"**, then ask.
 - Or press **Ctrl + Alt + G**.
 - Click the tray icon for the quick panel, or **Settings** for everything else.
 
