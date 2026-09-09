@@ -368,6 +368,16 @@ class Window(QWidget):
                       "you are finished. Raise it if you get cut off.")
         )
 
+        self._fun = Switch("Fun mode")
+        self._fun.setChecked(settings.get("fun_mode"))
+        self._fun.toggled.connect(lambda on: settings.put("fun_mode", on))
+        column.addWidget(self._fun)
+        column.addWidget(
+            self._dim("Chattier and more of a character. Turn it off and answers "
+                      "go back to one or two flat sentences, which is quicker to "
+                      "say out loud.")
+        )
+
         self._filler = Switch("Say something while it thinks")
         self._filler.setChecked(settings.get("think_out_loud"))
         self._filler.toggled.connect(

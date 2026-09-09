@@ -16,7 +16,7 @@ import time
 
 import httpx
 
-from . import actions, catalog, config, paths, programs, search, spotify
+from . import actions, catalog, config, paths, programs, search, settings, spotify
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -314,6 +314,24 @@ def _do(route, argument, question, on_token, on_searching) -> str:
     return said
 
 
+def _fun() -> bool:
+    return settings.get("fun_mode")
+
+
+def _style() -> str:
+    """The one part of the prompt that changes with the mode."""
+    return config.FUN_STYLE if _fun() else config.FAST_STYLE
+
+
+def _looseness() -> float:
+    """Character comes as much from a looser temperature as from the wording."""
+    return config.FUN_TEMPERATURE if _fun() else config.TEMPERATURE
+
+
+def _room_to_talk() -> int:
+    return config.FUN_MAX_ANSWER_TOKENS if _fun() else config.MAX_ANSWER_TOKENS
+
+
 def answer(question: str, on_token=None, on_searching=None) -> str:
     """Answer a question, looking it up first when the answer depends on it.
 
@@ -345,7 +363,7 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
         {
             "role": "system",
             "content": config.SYSTEM_PROMPT.format(
-                today=_today(), creator=config.CREATOR
+                today=_today(), creator=config.CREATOR, style=_style()
             ),
         }
     ]
@@ -357,8 +375,8 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
     started = time.perf_counter()
     reply = _ask(
         messages,
-        max_tokens=config.MAX_ANSWER_TOKENS,
-        temperature=config.TEMPERATURE,
+        max_tokens=_room_to_talk(),
+        temperature=_looseness(),
         on_token=on_token,
     )
 

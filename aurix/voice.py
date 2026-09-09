@@ -31,11 +31,22 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 
 # Said the moment a question lands, so nothing sits in silence while the model
 # thinks. Rendered at startup and kept in memory, so saying one costs nothing.
-FILLERS = ["Hmm.", "Let me think.", "One second.", "Right."]
+FAST_FILLERS = ["Hmm.", "Let me think.", "One second.", "Right."]
+FUN_FILLERS = [
+    "Lemme think about that.",
+    "Gimme a sec.",
+    "Ooh, good one.",
+    "Alright, let's see.",
+]
+
+# Both sets are made at startup so switching mode costs nothing later. It is
+# the first thing you hear every single time, so it is worth the extra second
+# of loading.
+FILLERS = FAST_FILLERS + FUN_FILLERS
 
 _engine: Kokoro | None = None
 _talking: "Speech | None" = None
-_fillers: list = []
+_fillers: dict = {}
 _speaking = 0.0  # how loud it is right now, for the face
 _playing = False  # cleared by stop(), so following the loudness lets go early
 
@@ -49,19 +60,22 @@ def load() -> None:
     if not voices.exists():
         raise FileNotFoundError(f"voices missing: {voices}")
     _engine = Kokoro(str(model), str(voices))
-    _fillers = []
+    _fillers = {}
 
 
 def warm_up() -> None:
     """First synthesis is slow, and the fillers have to be ready instantly."""
     global _fillers
     _say_it("Ready.", catalog.chosen_voice().key)
-    _fillers = [_render(line) for line in FILLERS]
+    _fillers = {line: _render(line) for line in FILLERS}
 
 
 def filler():
     """A short noise to make while the answer is still being worked out."""
-    return random.choice(_fillers) if _fillers else None
+    if not _fillers:
+        return None
+    wanted = FUN_FILLERS if settings.get("fun_mode") else FAST_FILLERS
+    return _fillers[random.choice(wanted)]
 
 
 def speak(text: str) -> None:
