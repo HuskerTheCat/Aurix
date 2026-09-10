@@ -303,6 +303,30 @@ class Window(QWidget):
         folder.addWidget(change)
         column.addLayout(folder)
 
+        column.addWidget(self._label("Gaming mode"))
+        self._gaming = QComboBox()
+        for name, value in (
+            ("Automatic", "auto"),
+            ("Always stay off the graphics card", "on"),
+            ("Never - always use the graphics card", "off"),
+        ):
+            self._gaming.addItem(name, value)
+        index = self._gaming.findData(settings.get("gaming_mode"))
+        self._gaming.setCurrentIndex(index if index >= 0 else 0)
+        self._gaming.currentIndexChanged.connect(
+            lambda _i: settings.put("gaming_mode", self._gaming.currentData())
+        )
+        column.addWidget(self._gaming)
+        column.addWidget(
+            self._dim(
+                "When a game is using the graphics card, Aurix moves the model "
+                "onto the processor and leaves it there until you are done, so "
+                "the two are never fighting over video memory. It takes about "
+                "half a second longer to start answering. Only worth anything "
+                "if your card is small enough for a game to fill it."
+            )
+        )
+
         return tab
 
     def _voice_tab(self) -> QWidget:
@@ -711,10 +735,19 @@ class Window(QWidget):
         if not card:
             lines.append("Graphics card: still starting up")
         elif not card.get("layers"):
-            lines.append(
-                "Graphics card: not being used. Everything is running on the "
-                "processor, so answers will be slow. Try a smaller model."
-            )
+            # off the card on purpose reads exactly like off the card by
+            # accident, and the advice for one is wrong for the other
+            if not brain.on_the_card():
+                lines.append(
+                    f"Graphics card: {card.get('device', 'there')}, left alone "
+                    "on purpose - gaming mode has the model on the processor "
+                    "while something else uses the card."
+                )
+            else:
+                lines.append(
+                    "Graphics card: not being used. Everything is running on the "
+                    "processor, so answers will be slow. Try a smaller model."
+                )
         else:
             lines.append(f"Graphics card: {card.get('device', 'in use')}")
             lines.append(

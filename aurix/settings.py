@@ -13,6 +13,9 @@ DEFAULTS: dict[str, Any] = {
     "silence_hangover": config.SILENCE_HANGOVER_SEC,
     "think_out_loud": True,
     "fun_mode": True,
+    # auto, on or off. "on" forces the model onto the processor and keeps it
+    # there; "off" keeps it on the graphics card whatever else is running.
+    "gaming_mode": "auto",
     "model": Path(config.MODEL_PATH).name,
     "voice": config.VOICE,
     "models_folder": str(paths.resolve("runtime/models")),

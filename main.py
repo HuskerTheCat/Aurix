@@ -15,8 +15,8 @@ from PySide6.QtWidgets import QApplication
 from pynput import keyboard
 
 from aurix import (
-    audio, brain, catalog, config, cores, paths, settings, speech, timings,
-    tray, voice, wake,
+    audio, brain, catalog, config, cores, gaming, paths, settings, speech,
+    timings, tray, voice, wake,
 )
 from aurix.audio import NoSpeechDetected, record_until_silence
 from aurix.overlay import Overlay
@@ -207,6 +207,48 @@ def _trigger() -> None:
     threading.Thread(target=_handle_request, daemon=True).start()
 
 
+def _watch_the_card() -> None:
+    """Keep the model off the graphics card while something else needs it."""
+    decision = gaming.Decision()
+    while True:
+        time.sleep(config.GAMING_POLL_SEC)
+        try:
+            _consider_the_card(decision)
+        except Exception as error:  # noqa: BLE001 - never take the app down over this
+            print(f"  could not check the graphics card: {error!r}")
+
+
+def _consider_the_card(decision: gaming.Decision) -> None:
+    choice = gaming.chosen()
+    if choice == "off":
+        wanted = True  # stay on the card whatever else is running
+    elif choice == "on":
+        wanted = False  # forced onto the processor
+    else:
+        settled = decision.update(
+            gaming.should_get_off(brain.hardware().get("card_mb"), brain.on_the_card())
+        )
+        if settled is None:
+            return  # not sure yet, or not steady long enough to act on
+        wanted = not settled
+
+    if wanted == brain.on_the_card():
+        return
+
+    # not in the middle of answering something - it will come round again in
+    # ten seconds, and a restart underneath a live question would lose it
+    if not _busy.acquire(blocking=False):
+        return
+    try:
+        if _listener is not None:
+            _listener.pause()
+        brain.use_the_card(wanted)
+    finally:
+        _busy.release()
+        if _listener is not None and not _paused_by_user:
+            _listener.resume()
+
+
 def _swap_model() -> None:
     """Restart the model server on whichever model is chosen now."""
     if _listener is not None:
@@ -250,6 +292,8 @@ def _load() -> None:
 
     _hotkeys = keyboard.GlobalHotKeys({config.HOTKEY: _trigger})
     _hotkeys.start()
+
+    threading.Thread(target=_watch_the_card, daemon=True).start()
 
     print(f'Ready. Say "{config.WAKE_WORD_NAME}", or press {config.HOTKEY}.')
     signals.ready.emit(config.WAKE_WORD_NAME)

@@ -25,6 +25,7 @@ _client: httpx.Client | None = None
 _hardware: dict = {}
 _last_answer: dict = {}
 _history: list[tuple[str, str]] = []  # what has been asked and answered
+_on_card = True  # False while gaming mode has it running on the processor
 _spoke_at: float = 0.0
 
 _THINKING = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
@@ -72,7 +73,9 @@ def start() -> None:
             "--port", str(config.LLAMA_PORT),
             "--host", "127.0.0.1",
             "--ctx-size", str(config.CONTEXT_SIZE),
-            "--n-gpu-layers", str(config.GPU_LAYERS),
+            # 0 puts the whole thing on the processor, which is what
+            # gaming mode does to keep off a card something else is using
+            "--n-gpu-layers", str(config.GPU_LAYERS if _on_card else 0),
             # Qwen rambles to itself forever without this and never answers
             "--reasoning", "off",
             "--no-webui",
@@ -424,6 +427,25 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
         print(f"  could not decide what to remember: {error!r}")
 
     return reply
+
+
+def on_the_card() -> bool:
+    """Whether the model is running on the graphics card right now."""
+    return _on_card
+
+
+def use_the_card(wanted: bool) -> None:
+    """Move the model onto the card or off it. Restarts the server.
+
+    Does nothing when it is already where it should be, because the restart is
+    the expensive part - about two seconds for the 4B.
+    """
+    global _on_card
+    if wanted == _on_card:
+        return
+    _on_card = wanted
+    print(f"  moving the model {'onto the card' if wanted else 'off the card'}")
+    restart()
 
 
 def restart() -> None:

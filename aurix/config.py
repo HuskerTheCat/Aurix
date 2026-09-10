@@ -314,6 +314,16 @@ WAKE_CHUNK = 1280
 WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
 WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"
 
+# --- Gaming mode ---
+# On top of the model's own size, to cover the context and compute buffers
+# (a few hundred MB) and leave the card some room to breathe.
+GAMING_HEADROOM_MB = 1024
+GAMING_POLL_SEC = 10
+# How long a reading has to hold before acting on it. Every switch is a model
+# server restart, so reacting to one reading would mean restarting all the way
+# through a level loading.
+GAMING_STEADY_SEC = 30
+
 # --- Giving up ---
 # Waiting for the speaking thread used to have no limit at all, so anything
 # that wedged in there took the wake word and the hotkey down with it for good
