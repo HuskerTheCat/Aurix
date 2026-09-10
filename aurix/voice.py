@@ -137,7 +137,15 @@ class Speech:
         self._thread.join()
 
     def cancel(self) -> None:
+        """Stop, and make sure the thread actually notices.
+
+        Setting the flag on its own was not enough: _run spends its life
+        blocked on an empty queue, so nothing ever looked at the flag and the
+        thread sat there for the life of the process. One leaked every time
+        speaking was cut off, and every time a request failed part way through.
+        """
         self._cancelled = True
+        self._waiting.put(None)
 
     def _run(self) -> None:
         while True:

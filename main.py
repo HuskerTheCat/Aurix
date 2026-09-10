@@ -79,6 +79,7 @@ def _say_already_running() -> None:
 
 def _handle_request() -> None:
     """One full listen, transcribe and answer cycle. Runs on its own thread."""
+    speech_out = None
     if not _busy.acquire(blocking=False):
         # This used to say nothing at all. When a request wedged once, every
         # later wake and every hotkey press landed here and vanished, the wake
@@ -88,6 +89,13 @@ def _handle_request() -> None:
         print("  still busy with the last request, ignoring this one")
         return
     try:
+        # paused in here rather than in _trigger, so that pausing and resuming
+        # are both inside the lock and cannot get out of step. Pausing outside
+        # it meant a trigger that arrived while busy paused the listener and
+        # then returned without ever resuming it
+        if _listener is not None:
+            _listener.pause()
+
         # nothing else is written until the words come back, and recording and
         # transcribing are both able to hang, so mark the start
         print("  listening...")
@@ -163,6 +171,10 @@ def _handle_request() -> None:
     except Exception as error:  # noqa: BLE001 - show it, but keep running
         print(f"  failed: {error!r}")
         signals.failed.emit("Something went wrong")
+        # it is only finished on the way out of a good answer, so without this
+        # a failure part way through left its speaking thread blocked forever
+        if speech_out is not None:
+            speech_out.cancel()
     finally:
         _busy.release()
         # wait until now or it hears itself talking and wakes up again
@@ -171,8 +183,6 @@ def _handle_request() -> None:
 
 
 def _trigger() -> None:
-    if _listener is not None:
-        _listener.pause()
     threading.Thread(target=_handle_request, daemon=True).start()
 
 

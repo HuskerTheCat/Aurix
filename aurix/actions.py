@@ -50,7 +50,7 @@ def control(command: str) -> str:
     if command == "pause":
         # Only Spotify's state is knowable, so when it is shut the key still
         # goes out and whatever else is playing gets it.
-        if playing == "playing" or playing == "closed":
+        if playing in ("playing", "closed"):
             keys.tap(keys.PLAY_PAUSE)
             return "Paused."
         return "Nothing is playing."
@@ -110,9 +110,11 @@ def open_page(request: str) -> str:
 
     site, rest = _pick_site(request)
     if site is not None:
-        home, search = SITES[site]
+        # not called `search`: that is the imported module, and assigning it
+        # here makes the name local for the whole function
+        home, looking = SITES[site]
         if rest:
-            _browse(search.format(q=quote_plus(rest)))
+            _browse(looking.format(q=quote_plus(rest)))
             return f"Searching {site} for {rest}."
         _browse(home)
         return f"Opening {site}."

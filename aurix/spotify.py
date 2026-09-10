@@ -340,7 +340,12 @@ def _cache() -> dict:
     global _remembered
     if _remembered is None:
         path = _cache_file()
-        _remembered = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        # utf-8-sig for the same reason settings.json needs it: this sits in
+        # the same folder, it is the same kind of file to go poking at, and
+        # anything on Windows that rewrites it by hand puts a mark on the front
+        _remembered = (
+            json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else {}
+        )
     return _remembered
 
 

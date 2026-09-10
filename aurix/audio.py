@@ -36,7 +36,9 @@ def _level(block: np.ndarray) -> float:
 
 def _is_speech(block: np.ndarray) -> bool:
     """Whether a block sounds like somebody talking. Silero wants 16 bit PCM."""
-    pcm = (block.flatten() * 32767).astype(np.int16)
+    # clipped first: a block louder than 1.0 wraps round on the way into int16,
+    # so the loudest moment of a sentence would come out looking like noise
+    pcm = (np.clip(block.flatten(), -1.0, 1.0) * 32767).astype(np.int16)
     return _vad.predict(pcm, frame_size=len(pcm)) >= config.VAD_THRESHOLD
 
 

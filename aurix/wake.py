@@ -5,9 +5,7 @@ pauses itself while Aurix is recording or speaking, so it cannot wake itself.
 """
 
 import threading
-import time
 
-import numpy as np
 import sounddevice as sd
 from openwakeword.model import Model
 
@@ -30,17 +28,10 @@ class Listener:
         self._thread: threading.Thread | None = None
         self._running = False
         self._listening = threading.Event()
-        self._peak = 0.0
 
     @property
     def wake_word(self) -> str:
         return self._name
-
-    @property
-    def peak_score(self) -> float:
-        """Highest score seen since the last check. Useful for tuning."""
-        peak, self._peak = self._peak, 0.0
-        return peak
 
     def start(self) -> None:
         self._running = True
@@ -79,7 +70,6 @@ class Listener:
                 block, _overflow = stream.read(config.WAKE_CHUNK)
                 scores = self._model.predict(block.flatten())
                 score = scores[self._name]
-                self._peak = max(self._peak, score)
 
                 if score >= settings.get("wake_threshold"):
                     self.pause()

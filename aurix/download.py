@@ -45,14 +45,6 @@ def fetch(url: str, destination: Path, size: int, on_progress, cancelled) -> Non
     part.replace(destination)
 
 
-def fetch_small(url: str, destination: Path) -> None:
-    """For the little settings file that rides along with a voice."""
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    reply = httpx.get(url, follow_redirects=True, timeout=30.0)
-    reply.raise_for_status()
-    destination.write_bytes(reply.content)
-
-
 def free_space(folder: Path) -> int:
     """Free bytes on whichever drive the folder is on, walking up if it is new."""
     existing = folder

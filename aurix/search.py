@@ -8,11 +8,22 @@ something you have to take on trust.
 
 import datetime
 import time
+from urllib.parse import quote
 
 import httpx
 from ddgs import DDGS
 
 from . import config
+
+
+def _in_a_url(place: str) -> str:
+    """A place name, safe to drop into the path of a URL.
+
+    The place is whatever was misheard and then handed over by the model, and
+    it goes straight into the address. safe="" so a slash in it cannot add a
+    path segment of its own.
+    """
+    return quote(place.strip(), safe="")
 
 _last_lookup: tuple[str, float] | None = None
 
@@ -32,7 +43,7 @@ def weather(place: str) -> str:
     """Current conditions and today's forecast, as plain text for the model."""
     note_lookup(f"weather in {place}")
     reply = httpx.get(
-        f"https://wttr.in/{place}",
+        f"https://wttr.in/{_in_a_url(place)}",
         params={"format": "j1"},
         headers={"User-Agent": "curl/8"},
         timeout=config.WEATHER_TIMEOUT_SEC,
@@ -63,7 +74,7 @@ def local_time(place: str) -> str:
 
     note_lookup(f"time in {place}")
     reply = httpx.get(
-        f"https://wttr.in/{place}",
+        f"https://wttr.in/{_in_a_url(place)}",
         params={"format": "%T %Z"},
         headers={"User-Agent": "curl/8"},
         timeout=config.WEATHER_TIMEOUT_SEC,
