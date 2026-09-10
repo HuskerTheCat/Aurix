@@ -16,7 +16,9 @@ import time
 
 import httpx
 
-from . import actions, catalog, config, paths, programs, search, settings, spotify
+from . import (
+    actions, catalog, config, memory, paths, programs, search, settings, spotify,
+)
 
 _process: subprocess.Popen | None = None
 _client: httpx.Client | None = None
@@ -332,6 +334,33 @@ def _room_to_talk() -> int:
     return config.FUN_MAX_ANSWER_TOKENS if _fun() else config.MAX_ANSWER_TOKENS
 
 
+def _consider_remembering(question: str, reply: str) -> None:
+    """Decide whether the exchange said anything about them worth keeping.
+
+    Called once the answer is written and already being spoken, so the model
+    call costs nothing anybody waits for. It can fail - a note not written is
+    not worth losing the answer over, and the log says when it happens.
+    """
+    verdict = _ask(
+        [{
+            "role": "user",
+            "content": config.REMEMBER_PROMPT.format(question=question, answer=reply),
+        }],
+        max_tokens=config.REMEMBER_TOKENS,
+        temperature=0.0,
+    )
+
+    line = verdict.strip().splitlines()[0].strip() if verdict.strip() else ""
+    if not line.upper().startswith("REMEMBER:"):
+        return
+
+    fact = line[len("REMEMBER:") :].strip().strip('"')
+    if not fact:
+        return
+    memory.remember(fact)
+    print(f"  remembered: {fact}")
+
+
 def answer(question: str, on_token=None, on_searching=None) -> str:
     """Answer a question, looking it up first when the answer depends on it.
 
@@ -363,7 +392,8 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
         {
             "role": "system",
             "content": config.SYSTEM_PROMPT.format(
-                today=_today(), creator=config.CREATOR, style=_style()
+                today=_today(), creator=config.CREATOR, style=_style(),
+                memory=memory.for_prompt(),
             ),
         }
     ]
@@ -387,6 +417,12 @@ def answer(question: str, on_token=None, on_searching=None) -> str:
 
     seconds = time.perf_counter() - started
     _last_answer = {"words": len(reply.split()), "seconds": seconds, "looked_up": route}
+
+    try:
+        _consider_remembering(question, reply)
+    except Exception as error:  # noqa: BLE001 - never lose an answer over a note
+        print(f"  could not decide what to remember: {error!r}")
+
     return reply
 
 

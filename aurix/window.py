@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -24,8 +26,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import (
-    audio, brain, catalog, config, download, paths, search, settings, theme,
-    timings, voice,
+    audio, brain, catalog, config, download, memory, paths, search, settings,
+    theme, timings, voice,
 )
 from .switch import Switch
 
@@ -248,6 +250,7 @@ class Window(QWidget):
         tabs.addTab(self._voice_tab(), "Voice")
         tabs.addTab(self._audio_tab(), "Audio")
         tabs.addTab(self._look_tab(), "Look")
+        tabs.addTab(self._memory_tab(), "Memory")
         tabs.addTab(self._status_tab(), "Status")
         tabs.currentChanged.connect(lambda _index: self._refresh())
         layout.addWidget(tabs, 1)
@@ -429,6 +432,45 @@ class Window(QWidget):
         column.addStretch(1)
         return tab
 
+    def _memory_tab(self) -> QWidget:
+        tab = QWidget()
+        column = QVBoxLayout(tab)
+        column.setContentsMargins(14, 14, 14, 14)
+        column.setSpacing(10)
+
+        column.addWidget(self._label("What Aurix knows about you"))
+        column.addWidget(
+            self._dim("One thing per line. Aurix adds to this by itself when you "
+                      "tell it something about you, and you can write, change or "
+                      "delete any of it here. It never leaves this machine.")
+        )
+
+        self._memory = QPlainTextEdit()
+        self._memory.setPlaceholderText(
+            "Nothing yet. Tell Aurix something about yourself, or type it here."
+        )
+        column.addWidget(self._memory, 1)
+
+        self._memory_note = self._dim("")
+        column.addWidget(self._memory_note)
+
+        row = QHBoxLayout()
+        save = QPushButton("Save")
+        save.setObjectName("primary")
+        save.clicked.connect(self._save_memory)
+        row.addWidget(save)
+        reload_it = QPushButton("Undo my changes")
+        reload_it.clicked.connect(self._load_memory)
+        row.addWidget(reload_it)
+        row.addStretch(1)
+        clear = QPushButton("Forget everything")
+        clear.setObjectName("quit")
+        clear.clicked.connect(self._clear_memory)
+        row.addWidget(clear)
+        column.addLayout(row)
+
+        return tab
+
     def _status_tab(self) -> QWidget:
         tab = QWidget()
         column = QVBoxLayout(tab)
@@ -490,6 +532,41 @@ class Window(QWidget):
     def _forget(self) -> None:
         brain.forget()
         self._note.setText("Forgotten. The next question starts fresh.")
+
+    # --- what it remembers about you ---
+
+    def _load_memory(self) -> None:
+        """Show what is on disk, throwing away anything typed and not saved."""
+        self._memory.setPlainText(memory.text())
+        self._memory.document().setModified(False)
+        self._memory_note.setText(self._memory_count())
+
+    def _memory_count(self) -> str:
+        count = len(memory.notes())
+        if not count:
+            return "Nothing remembered yet."
+        room = config.MEMORY_NOTES
+        return f"{count} of {room} things remembered."
+
+    def _save_memory(self) -> None:
+        memory.replace(self._memory.toPlainText())
+        # read it back, because saving trims blank lines, over-long lines and
+        # anything past the limit - better to see that happen than not
+        self._load_memory()
+        self._note.setText("Saved. Aurix will know that from the next question.")
+
+    def _clear_memory(self) -> None:
+        confirm = QMessageBox(self)
+        confirm.setWindowTitle("Forget everything")
+        confirm.setText("Delete everything Aurix remembers about you?")
+        confirm.setInformativeText("This cannot be undone.")
+        confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        confirm.setDefaultButton(QMessageBox.Cancel)
+        if confirm.exec() != QMessageBox.Yes:
+            return
+        memory.clear()
+        self._load_memory()
+        self._note.setText("Forgotten. Aurix no longer knows anything about you.")
 
     # --- what the buttons do ---
 
@@ -613,6 +690,11 @@ class Window(QWidget):
         )
         self._status.setText(self._status_text())
 
+        # not while something is half typed - Aurix writing a note of its own
+        # must not wipe out what somebody is in the middle of editing
+        if not self._memory.document().isModified():
+            self._load_memory()
+
     def _status_text(self) -> str:
         lines = []
 
@@ -639,9 +721,9 @@ class Window(QWidget):
             if verdict is not None:
                 lines.append(verdict)
 
-        memory = brain.memory_mb()
-        if memory is not None:
-            lines.append(f"Memory in use right now: {memory / 1024:.1f} GB")
+        in_use = brain.memory_mb()
+        if in_use is not None:
+            lines.append(f"Memory in use right now: {in_use / 1024:.1f} GB")
 
         last = brain.last_answer()
         if last:

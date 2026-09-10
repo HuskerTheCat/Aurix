@@ -44,8 +44,12 @@ QWidget#settings {{ background: transparent; }}
 QFrame#shell {{
     background: {bg}; border: 1px solid {border}; border-radius: 12px;
 }}
+/* padding: 0 matters. Without it this inherits the 6px 12px above, which
+   makes the button want to be 39x32, and the fixed 28x28 then crops the
+   glyph - worse the higher your display scaling is. */
 QPushButton#close {{
     background: transparent; border: none; color: {text}; font-size: 15px;
+    padding: 0;
 }}
 QPushButton#close:hover {{ background: {surface}; border-radius: 6px; color: {bright}; }}
 QLabel {{ background: transparent; }}
@@ -56,10 +60,13 @@ QLabel#wakeword {{
     background: {soft}; color: {accent}; border: 1px solid {border};
     border-radius: 6px; padding: 7px 10px; font-size: 13px;
 }}
-QComboBox, QLineEdit {{
+QComboBox, QLineEdit, QPlainTextEdit {{
     background: {surface}; color: {bright}; border: 1px solid {border};
     border-radius: 6px; padding: 5px 8px;
 }}
+/* the memory notes are meant to be read and edited a line at a time, so they
+   get a little more room than the 12px everything else uses */
+QPlainTextEdit {{ font-size: 13px; }}
 QComboBox QAbstractItemView {{
     background: {surface}; color: {bright}; selection-background-color: {accent};
 }}

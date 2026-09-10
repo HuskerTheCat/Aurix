@@ -45,6 +45,78 @@ TEMPERATURE = 0.3
 MEMORY_TURNS = 4  # how many past exchanges to keep
 MEMORY_TIMEOUT_SEC = 300  # after this much quiet, the thread is dropped
 
+# --- Remembering you, between sessions ---
+# The notes live in memory.txt next to settings.json and are meant to be
+# readable and editable by hand, so both limits are about keeping the prompt
+# small rather than saving disk - 40 notes is roughly 500 tokens off a 4096
+# context, which is already shared with search results and the conversation.
+MEMORY_NOTES = 40
+MEMORY_NOTE_CHARS = 120
+REMEMBER_TOKENS = 40
+
+# Every clause here is load bearing, and it was worse before. A list of facts
+# in the prompt reads to a 4B as material to work in: "use it when relevant"
+# got a note dragged into 12 of 15 answers that had nothing to do with any of
+# them - "a capacitor... which your welder friend probably uses". This wording
+# gets that to 4 of 15 with recall untouched at 4 of 4.
+#
+# Do not drop the greeting clause to let it say their name. Tried it, and the
+# facts came straight back to 11 of 15 - it is what sets the general "do not
+# volunteer this" stance, and the rest leans on it.
+MEMORY_PROMPT = (
+    "You happen to know these things about the person you are talking to:\n"
+    "{notes}\n"
+    "This is for answering questions about them, nothing else. Do not greet "
+    "them by name, do not bring their pets, home, work or dislikes into an "
+    "answer about anything else, and never mention having notes. If the "
+    "question is not about them, this list is not relevant.\n"
+)
+
+# A separate one-line question, the same shape as the routing one above, and
+# for the same reason: asked to answer and decide in one go, a 4B does one of
+# them properly. This runs after the answer is already being spoken, so the
+# time it takes is hidden.
+REMEMBER_PROMPT = (
+    "Below is something a person said to their assistant, and the reply.\n"
+    "Decide whether it contains a fact about the person worth remembering "
+    "next week.\n"
+    "Reply with exactly one line and nothing else, in one of these forms:\n"
+    "  REMEMBER: <the fact, under twelve words, written about them>\n"
+    "  NOTHING\n\n"
+    "Worth keeping: their name, where they live, their job, their birthday, "
+    "what they own, what they like and dislike, people and pets they mention, "
+    "and anything they say about how they want you to behave.\n"
+    "Keep nothing else. Not the question, not the answer, not anything that "
+    "was looked up, nothing about the assistant, and nothing that stops being "
+    "true tomorrow.\n"
+    "If they asked you to remember something, always REMEMBER it.\n"
+    "Write it as a plain statement about them.\n\n"
+    "Examples:\n"
+    "  Them: My name is Casen\n"
+    "  Me: Nice to meet you, Casen!\n"
+    "  REMEMBER: Their name is Casen\n"
+    "  Them: What is the capital of France\n"
+    "  Me: Paris.\n"
+    "  NOTHING\n"
+    "  Them: I hate mushrooms, never put them on anything\n"
+    "  Me: Noted, no mushrooms.\n"
+    "  REMEMBER: They hate mushrooms\n"
+    "  Them: What time is it\n"
+    "  Me: Ten past four.\n"
+    "  NOTHING\n"
+    "  Them: I have got a cat called Biscuit\n"
+    "  Me: Biscuit is a great name for a cat.\n"
+    "  REMEMBER: They have a cat called Biscuit\n"
+    "  Them: How far is it to Denver\n"
+    "  Me: About 500 miles.\n"
+    "  NOTHING\n"
+    "  Them: Remember that I work night shifts\n"
+    "  Me: Got it.\n"
+    "  REMEMBER: They work night shifts\n\n"
+    "Them: {question}\n"
+    "Me: {answer}\n"
+)
+
 CREATOR = "Husker"
 
 SYSTEM_PROMPT = (
@@ -57,6 +129,7 @@ SYSTEM_PROMPT = (
     "Your answers are read aloud, so never use lists, bullet points, markdown, "
     "headings or emoji.\n"
     "{style}"
+    "{memory}"
     "If you are given information to work from, answer from it rather than from "
     "memory, and prefer the most recent when sources disagree. Never begin with "
     "'Based on the search results' or anything like it - just say the answer. "

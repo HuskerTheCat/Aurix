@@ -34,6 +34,11 @@ def previous_log_file() -> Path:
     return log_file().parent / "aurix-previous.log"
 
 
+def memory_file() -> Path:
+    """The notes Aurix keeps about you, next to the settings it keeps for you."""
+    return log_file().parent / "memory.txt"
+
+
 def llama_log() -> Path:
     """Where the model server writes its own log, next to Aurix's."""
     return log_file().parent / "llama.log"
