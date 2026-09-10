@@ -43,6 +43,7 @@ class Signals(QObject):
 
 signals = Signals()
 _busy = threading.Lock()
+_busy_since: float | None = None  # when the running request started, for spotting a stuck one
 _listener: wake.Listener | None = None
 _hotkeys: keyboard.GlobalHotKeys | None = None
 _paused_by_user = False
@@ -79,15 +80,30 @@ def _say_already_running() -> None:
 
 def _handle_request() -> None:
     """One full listen, transcribe and answer cycle. Runs on its own thread."""
+    global _busy_since
     speech_out = None
     if not _busy.acquire(blocking=False):
         # This used to say nothing at all. When a request wedged once, every
         # later wake and every hotkey press landed here and vanished, the wake
         # word stayed paused because only the finally below resumes it, and the
         # log stopped dead at "Ready" - which looks exactly like a broken
-        # hotkey. Say so, and a stuck request is obvious next time.
-        print("  still busy with the last request, ignoring this one")
+        # hotkey. Say how long it has been, so slow and stuck read differently.
+        running_for = time.monotonic() - (_busy_since or time.monotonic())
+        print(f"  still busy with the last request ({running_for:.0f}s), ignoring this one")
+
+        if running_for > config.STUCK_AFTER_SEC:
+            # Nothing can safely interrupt the wedged thread - Python cannot
+            # kill one - but it must not take the wake word with it silently.
+            print(
+                f"  the last request has been going for {running_for:.0f}s, which "
+                "is not slow, it is stuck. Restart Aurix."
+            )
+            signals.failed.emit("Stuck on the last question - restart Aurix")
+            if _listener is not None and not _paused_by_user:
+                _listener.resume()
         return
+
+    _busy_since = time.monotonic()
     try:
         # paused in here rather than in _trigger, so that pausing and resuming
         # are both inside the lock and cannot get out of step. Pausing outside
@@ -149,7 +165,11 @@ def _handle_request() -> None:
 
         print(f'  said:  "{reply}"')
         speech_out.say(unspoken)
-        speech_out.finish()
+        if not speech_out.finish(config.SPEAKING_PATIENCE_SEC):
+            print(
+                f"  gave up waiting to finish speaking after "
+                f"{config.SPEAKING_PATIENCE_SEC}s - something is wrong with the voice"
+            )
         spoken = time.perf_counter()
 
         signals.answer_done.emit()  # after speaking, so the orb stays up
@@ -176,6 +196,7 @@ def _handle_request() -> None:
         if speech_out is not None:
             speech_out.cancel()
     finally:
+        _busy_since = None
         _busy.release()
         # wait until now or it hears itself talking and wakes up again
         if _listener is not None and not _paused_by_user:

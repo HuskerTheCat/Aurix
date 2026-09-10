@@ -52,4 +52,6 @@ def put(name: str, value: Any) -> None:
     if name not in DEFAULTS:
         raise KeyError(f"unknown setting {name!r}")
     _values[name] = value
-    _file().write_text(json.dumps(_values, indent=2), encoding="utf-8")
+    # written beside and renamed over: a half written settings.json is one
+    # Aurix will not start from, and every slider drag rewrites this file
+    paths.save_text(_file(), json.dumps(_values, indent=2))

@@ -131,10 +131,19 @@ class Speech:
         if sound is not None:
             self._waiting.put(sound)
 
-    def finish(self) -> None:
-        """Wait until everything queued has been spoken."""
+    def finish(self, patience: float) -> None:
+        """Wait until everything queued has been spoken, but not forever.
+
+        This used to join with no timeout, which made it the one place a
+        request could hang while holding the lock that every wake word and
+        hotkey press goes through. Returns whether it finished speaking.
+        """
         self._waiting.put(None)
-        self._thread.join()
+        self._thread.join(timeout=patience)
+        if self._thread.is_alive():
+            self.cancel()
+            return False
+        return True
 
     def cancel(self) -> None:
         """Stop, and make sure the thread actually notices.

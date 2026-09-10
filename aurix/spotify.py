@@ -375,7 +375,7 @@ def _forget(asked: str) -> None:
 
 
 def _write_cache() -> None:
-    _cache_file().write_text(json.dumps(_remembered), encoding="utf-8")
+    paths.save_text(_cache_file(), json.dumps(_remembered))
 
 
 # --- finding things ---

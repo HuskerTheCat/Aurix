@@ -40,7 +40,7 @@ def replace(new_text: str) -> None:
     """
     kept = [line.strip() for line in new_text.splitlines() if line.strip()]
     kept = [line[: config.MEMORY_NOTE_CHARS] for line in kept][-config.MEMORY_NOTES :]
-    _file().write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+    paths.save_text(_file(), "\n".join(kept) + ("\n" if kept else ""))
 
 
 def clear() -> None:

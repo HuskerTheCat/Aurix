@@ -5,6 +5,26 @@ import sys
 from pathlib import Path
 
 
+def save_text(path: Path, text: str) -> None:
+    """Write a small file so that a crash part way cannot leave it half written.
+
+    Written beside itself and then renamed over the top, because the rename is
+    the only step that has to be all-or-nothing. Writing straight over the real
+    file means a crash, a power cut or a full disk halfway through leaves a
+    truncated one - and settings.json, music.json and memory.txt are all files
+    Aurix refuses to start without or quietly loses.
+
+    Same shape as the .part file the model download already used.
+    """
+    beside = path.with_name(path.name + ".new")
+    try:
+        beside.write_text(text, encoding="utf-8")
+        beside.replace(path)  # atomic on Windows for a same-folder rename
+    except BaseException:
+        beside.unlink(missing_ok=True)
+        raise
+
+
 def app_root() -> Path:
     """The folder Aurix's files live in."""
     if getattr(sys, "frozen", False):

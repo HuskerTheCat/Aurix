@@ -194,6 +194,7 @@ class Window(QWidget):
     """Everything the tray panel is too small for."""
 
     progress = Signal(str, int)
+    checking = Signal(str)
     finished = Signal(str, str)
     switched = Signal(str)
     moved = Signal(str)
@@ -215,6 +216,7 @@ class Window(QWidget):
         self._dragging_from = None
 
         self.progress.connect(self._on_progress)
+        self.checking.connect(self._on_checking)
         self.finished.connect(self._on_finished)
         self.switched.connect(self._on_switched)
         self.moved.connect(self._on_moved)
@@ -610,8 +612,10 @@ class Window(QWidget):
                 item.url,
                 catalog.model_file(item),
                 item.size,
+                item.sha256,
                 lambda done: self.progress.emit(item.key, done),
                 lambda: self._cancel[item.key],
+                lambda: self.checking.emit(item.key),
             )
         except download.Cancelled:
             self.finished.emit(item.key, "cancelled")
@@ -654,6 +658,11 @@ class Window(QWidget):
 
     def _on_progress(self, key: str, done: int) -> None:
         self._cards[key].show_progress(done)
+
+    def _on_checking(self, _key: str) -> None:
+        """Said out loud because hashing a big model is not instant, and a
+        progress bar sitting at full with nothing happening reads as a hang."""
+        self._note.setText("Downloaded. Checking it is the right file...")
 
     def _on_finished(self, key: str, error: str) -> None:
         self._cards[key].clear_progress()

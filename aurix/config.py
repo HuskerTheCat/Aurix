@@ -314,5 +314,17 @@ WAKE_CHUNK = 1280
 WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
 WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"
 
+# --- Giving up ---
+# Waiting for the speaking thread used to have no limit at all, so anything
+# that wedged in there took the wake word and the hotkey down with it for good
+# and said nothing about why. This is several times the longest answer Aurix
+# can produce, so reaching it means something is wrong rather than long.
+SPEAKING_PATIENCE_SEC = 120
+
+# Past this, a request is not slow, it is stuck. Every part of a request has
+# its own timeout - the model server calls are capped at 120s each - so a real
+# one cannot get near this even when everything is having a bad day.
+STUCK_AFTER_SEC = 420
+
 # --- Trigger ---
 HOTKEY = "<ctrl>+<alt>+g"
