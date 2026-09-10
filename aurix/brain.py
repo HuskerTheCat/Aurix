@@ -443,9 +443,20 @@ def use_the_card(wanted: bool) -> None:
     global _on_card
     if wanted == _on_card:
         return
+
+    was = _on_card
     _on_card = wanted
     print(f"  moving the model {'onto the card' if wanted else 'off the card'}")
-    restart()
+    try:
+        restart()
+    except Exception:
+        # restart() has already stopped the old server, so a failure here
+        # leaves nothing running. Put the flag back rather than let it claim
+        # the model is somewhere it is not - the watcher looks again in a few
+        # seconds, sees the mismatch and has another go, which is what gets it
+        # back on its feet if the problem was a momentary one.
+        _on_card = was
+        raise
 
 
 def restart() -> None:
