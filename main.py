@@ -221,8 +221,10 @@ def _watch_the_card() -> None:
 def _consider_the_card(decision: gaming.Decision) -> None:
     choice = gaming.chosen()
     if choice == "off":
+        decision.forget()
         wanted = True  # stay on the card whatever else is running
     elif choice == "on":
+        decision.forget()
         wanted = False  # forced onto the processor
     else:
         settled = decision.update(

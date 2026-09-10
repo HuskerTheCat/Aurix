@@ -76,6 +76,16 @@ class Decision:
         self._wanted: bool | None = None
         self._since = 0.0
 
+    def forget(self) -> None:
+        """Start the count again.
+
+        Used when the setting is not on automatic, so that turning automatic
+        back on does not act on a single reading - the stale timestamp would
+        otherwise look like it had been steady for hours.
+        """
+        self._wanted = None
+        self._since = 0.0
+
     def update(self, reading: bool | None) -> bool | None:
         """Feed one reading. Returns a settled answer, or None if not settled."""
         if reading is None:
