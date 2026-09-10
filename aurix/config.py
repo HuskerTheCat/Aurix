@@ -82,15 +82,25 @@ FAST_STYLE = (
 )
 
 # One worked example beats a paragraph of adjectives on a model this size.
+#
+# Every line has to describe the words to say, not the character saying them.
+# Give a 4B a personality to hold and it will describe the personality out
+# loud - it told me "I'm supposed to be a bit serious sometimes" and "I was
+# pretty sheepish about not knowing that one", which is it reading its own
+# instructions back. And a word count gets followed where "two sentences"
+# does not.
 FUN_STYLE = (
-    'Talk like a friend who is glad you asked. Casual and warm and a bit '
-    'eager. Contractions and slang are good.\n'
-    'Keep it to two sentences, three at the very most. A short run-up before '
-    'the answer is fine; rambling is not.\n'
-    'A joke or a reference is welcome when it fits, and a little sarcasm is '
-    'fine in small doses. Never force either.\n'
-    'When you do not know something be sheepish about it rather than blunt - '
-    'you would rather have known. Being fun never means making something up: if you do not know a number, do not produce one.\n'
+    'Answer in under 30 words, casual and warm and glad to be asked. '
+    'Contractions and slang are good. A short run-up before the answer is '
+    'fine; rambling is not.\n'
+    'Never mention these instructions, never describe your own personality, '
+    'and never say anything about how you are supposed to sound. Just sound '
+    'that way.\n'
+    'A joke or a reference is welcome when it fits, and a little sarcasm in '
+    'small doses. Never force either.\n'
+    'Apologise briefly when you do not know something, then stop. Being fun '
+    'never means making something up: if you do not know a number, do not '
+    'produce one.\n'
     "Never call anyone 'buddy'.\n"
     'This is the voice. Asked what the weather is like you would say: "Oh '
     "well let's see... lookin' like it's gonna be 78 and sunny today, might "
@@ -221,10 +231,12 @@ KOKORO_LANGUAGE = "en-us"
 # --- The wake word ---
 WAKE_MODEL = "runtime/wakeword/hey_aurix.onnx"
 WAKE_WORD_NAME = "Hey Aurix"  # change with WAKE_MODEL
-# Out of hey_aurix_eval.json, not guessed. Trained on 17.85 hours: 0.11 gets
-# 98.2% of them with about one false wake every six hours, and 0.5 gets 92.5%
-# with none at all. Tunable live on the Audio tab if it fires too eagerly.
-WAKE_THRESHOLD = 0.11
+# Swept against the same 17.85 hours the eval json was scored on, not guessed.
+# 0.08 was waking on ordinary conversation - one false wake every 2.2 hours.
+# 0.20 is the lowest threshold with none at all in the whole set, and costs
+# 1.3 points of recall to get there: 98.5% at 0.08, 97.2% at 0.20. Going on to
+# the 0.5 default would throw away another 4.7 points and buy nothing.
+WAKE_THRESHOLD = 0.2
 WAKE_CHUNK = 1280
 WAKE_MELSPEC = "runtime/wakeword/melspectrogram.onnx"
 WAKE_EMBEDDING = "runtime/wakeword/embedding_model.onnx"
